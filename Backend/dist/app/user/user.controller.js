@@ -41,30 +41,83 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __rest = (this && this.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPendingKYC = exports.getPendingOnboarding = exports.getActiveSessions = exports.getRegisteredUsersByDate = exports.completeRegistration = exports.inviteUser = exports.logout = exports.getUserInfo = exports.login = exports.getAllUser = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUser = exports.createUser = void 0;
-const express_async_handler_1 = __importDefault(require("express-async-handler"));
-const response_helper_1 = require("../common/helper/response.helper");
-const passport_jwt_service_1 = require("../common/services/passport-jwt.service");
+exports.updateKYCStatus = exports.updatePassword = exports.forgotPassword = exports.resendEmail = exports.getDashboardStats = exports.changeBlockStatus = exports.setPassword = exports.refresh = exports.getAllUser = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUser = exports.refreshToken = exports.loginUser = exports.createUser = void 0;
+const user_schema_1 = __importDefault(require("./user.schema"));
 const userService = __importStar(require("./user.service"));
+const response_helper_1 = require("../common/helper/response.helper");
+const express_async_handler_1 = __importDefault(require("express-async-handler"));
+const bcrypt_1 = __importDefault(require("bcrypt"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const sendEmail_1 = require("../common/helper/sendEmail");
 exports.createUser = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { email } = req.body;
+    const existingUser = yield userService.getUserByEmail(email);
+    if (existingUser) {
+        throw new Error("User already exists");
+    }
     const result = yield userService.createUser(req.body);
-    const { password } = result, user = __rest(result, ["password"]);
-    res.send((0, response_helper_1.createResponse)(user, "User created sucssefully"));
+    const token = jsonwebtoken_1.default.sign({ email }, process.env.JWT_SECRET, { expiresIn: "60m" });
+    const fullUrl = `http://localhost:5000/api/user/set-password/${token}`;
+    const mailSent = yield (0, sendEmail_1.sendEmail)({
+        email: email,
+        url: fullUrl,
+        sub: "Set Password",
+        html: `In order to set your password please follow this link: <a href="${fullUrl}">${fullUrl}</a>`
+    });
+    if (mailSent) {
+        res.send((0, response_helper_1.createResponse)(result, "User created successfully"));
+    }
+    else {
+        res.send((0, response_helper_1.createResponse)(result, "Error while sending email"));
+    }
+}));
+exports.loginUser = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        throw new Error("Email and password are required");
+    }
+    const user = yield user_schema_1.default.findOne({ email });
+    if (!user) {
+        throw new Error("User not found");
+    }
+    if (user.isBlocked) {
+        throw new Error("User is blocked");
+    }
+    const isPasswordValid = yield bcrypt_1.default.compare(password, user.password || "");
+    if (!isPasswordValid) {
+        throw new Error("Invalid password");
+    }
+    const accessToken = userService.generateAccessToken(user.id, user.role);
+    const refreshToken = userService.generateRefreshToken(user.id, user.role);
+    user.refreshToken = refreshToken;
+    user.isActive = true;
+    yield user.save();
+    res.cookie("AccessToken", accessToken, {
+        httpOnly: true, // Ensures the cookie can't be accessed by client-side JavaScript
+        secure: process.env.NODE_ENV === "production", // Set to true in production (HTTPS only)
+        maxAge: 15 * 60 * 1000, // Set the cookie expiry time (15 minutes in milliseconds)
+    });
+    const result = { accessToken, refreshToken };
+    console.log(result);
+    res.send((0, response_helper_1.createResponse)(result, "Login successful"));
+}));
+exports.refreshToken = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+        throw new Error("Refresh token is required");
+    }
+    try {
+        const decoded = jsonwebtoken_1.default.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        const accessToken = userService.generateAccessToken(decoded.userId, decoded.role);
+        throw new Error("User not found");
+    }
+    catch (err) {
+        throw new Error("Invalid refresh token");
+    }
 }));
 exports.updateUser = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield userService.updateUser(req.params.id, req.body);
@@ -86,45 +139,200 @@ exports.getAllUser = (0, express_async_handler_1.default)((req, res) => __awaite
     const result = yield userService.getAllUser();
     res.send((0, response_helper_1.createResponse)(result));
 }));
-exports.login = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    //@ts-ignore
-    const tokens = (0, passport_jwt_service_1.createUserTokens)(req.user);
-    res.send((0, response_helper_1.createResponse)(tokens));
+exports.refresh = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+        throw new Error("Refresh token is required");
+    }
+    try {
+        // Verify the refresh token
+        const decoded = jsonwebtoken_1.default.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        console.log("Decoded Token:", decoded);
+        // Find the user by ID and refresh token
+        const user = yield user_schema_1.default.findOne({ _id: decoded.id.toString(), refreshToken });
+        console.log("Database Query Result:", user);
+        if (!user) {
+            throw new Error("User not found");
+        }
+        // Generate new tokens
+        const newAccessToken = userService.generateAccessToken(user.id, user.role);
+        const newRefreshToken = userService.generateRefreshToken(user.id, user.role);
+        // Update the refresh token in the database (rotate token)
+        user.refreshToken = newRefreshToken;
+        yield user.save();
+        // Set the new access token as an HTTP-only cookie
+        res.cookie("AccessToken", newAccessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production", // Use HTTPS in production
+            maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
+        });
+        res.status(200).send((0, response_helper_1.createResponse)({ accessToken: newAccessToken, refreshToken: newRefreshToken }, "Tokens refreshed successfully"));
+    }
+    catch (error) {
+        console.error("Refresh Token Error:", error);
+        throw new Error("Invalid refresh token");
+    }
 }));
-exports.getUserInfo = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    //@ts-ignore
-    const user = yield userService.getUserById((_a = req.user) === null || _a === void 0 ? void 0 : _a._id);
-    res.send((0, response_helper_1.createResponse)(user));
+exports.setPassword = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { token } = req.params;
+    const { password } = req.body;
+    if (!password) {
+        res.status(400).send({
+            message: "Password is required",
+        });
+        return;
+    }
+    try {
+        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
+        const email = decoded.email;
+        // Update the user's password
+        const updatedUser = yield userService.updatePassword(email, password);
+        res.status(200).send({
+            message: "Password updated successfully",
+            user: updatedUser,
+        });
+    }
+    catch (error) {
+        res.status(400).send({
+            message: "Invalid or expired token",
+        });
+    }
 }));
-exports.logout = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const user = req.user;
-    // To do: Remove session
-    res.send((0, response_helper_1.createResponse)({}));
+exports.changeBlockStatus = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId, isBlocked } = req.body;
+    // Initialize an array to hold validation errors
+    const validationErrors = [];
+    // Validate input
+    if (!userId || typeof userId !== "string") {
+        validationErrors.push({
+            type: "field",
+            msg: "userId must be a non-empty string.",
+            path: "userId",
+            location: "body"
+        });
+    }
+    if (typeof isBlocked !== "boolean") {
+        validationErrors.push({
+            type: "field",
+            msg: "isBlocked must be a boolean.",
+            path: "isBlocked",
+            location: "body"
+        });
+    }
+    // If there are validation errors, return them
+    if (validationErrors.length > 0) {
+        res.status(400).json({
+            success: false,
+            error_code: 400,
+            message: "Validation error!",
+            data: {
+                errors: validationErrors
+            }
+        });
+        return; // Ensure to return here to avoid further execution
+    }
+    // Block or unblock the user
+    const user = yield userService.blockUser(userId, isBlocked);
+    if (!user) {
+        res.status(404).json({
+            success: false,
+            error_code: 404,
+            message: "User  not found.",
+        });
+        return; // Ensure to return here to avoid further execution
+    }
+    // Send success response
+    res.json({
+        success: true,
+        message: `User  ${isBlocked ? "blocked" : "unblocked"} successfully.`,
+        data: user,
+    });
 }));
-exports.inviteUser = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield userService.inviteUser(req.body);
-    res.send((0, response_helper_1.createResponse)(result, "User invited sucssefully"));
+exports.getDashboardStats = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { startDate, endDate } = req.query;
+    // Validate input
+    if (!startDate || !endDate) {
+        res.status(400).json({
+            success: false,
+            message: "Please provide both startDate and endDate as query parameters.",
+        });
+        return;
+    }
+    const stats = yield userService.getDashboardStats(startDate, endDate);
+    res.json({
+        success: true,
+        message: "Dashboard statistics fetched successfully",
+        data: stats,
+    });
 }));
-exports.completeRegistration = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const id = req.params.id; // or req.body.id, depending on how you're sending the id
-    const data = req.body;
-    const result = yield userService.completeRegistration(id, data);
-    res.send((0, response_helper_1.createResponse)(result, "User registered sucssefully"));
+exports.resendEmail = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { email } = req.body;
+    if (!email) {
+        res.status(400).json({ success: false, message: "Email is required" });
+        return;
+    }
+    const subject = "onboarding and KYC pending";
+    const messageBody = "Dear user please complete your onboarding process and complete your KYC verification";
+    const result = yield userService.resendEmailService(email, subject, messageBody);
+    res.json(result);
 }));
-exports.getRegisteredUsersByDate = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield userService.getRegisteredUsersByDate(req.params.date);
-    res.send((0, response_helper_1.createResponse)(result));
+exports.forgotPassword = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { email } = req.body;
+    let url = jsonwebtoken_1.default.sign({ email }, process.env.JWT_SECRET, { expiresIn: "15m" });
+    const mailSent = yield (0, sendEmail_1.sendEmail)({
+        email: email,
+        url: `http://localhost:5000/api/user/update-password/${url}`,
+        sub: "Set Password",
+        html: `In order to set your password please follow this link ${url}`
+    });
+    if (mailSent) {
+        res.send((0, response_helper_1.createResponse)("Mail send successfully"));
+    }
+    else {
+        res.send((0, response_helper_1.createResponse)("Error while sending email"));
+    }
 }));
-exports.getActiveSessions = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield userService.getActiveSessions();
-    res.send((0, response_helper_1.createResponse)(result));
+exports.updatePassword = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { token } = req.params;
+    const { password } = req.body;
+    if (!password) {
+        res.status(400).send({
+            message: "Password is required",
+        });
+        return;
+    }
+    try {
+        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
+        const email = decoded.email;
+        // Update the user's password
+        const updatedUser = yield userService.updatePassword(email, password);
+        res.status(200).send({
+            message: "Password updated successfully",
+            user: updatedUser,
+        });
+    }
+    catch (error) {
+        res.status(400).send({
+            message: "Invalid or expired token",
+        });
+    }
 }));
-exports.getPendingOnboarding = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield userService.getPendingOnboarding();
-    res.send((0, response_helper_1.createResponse)(result));
-}));
-exports.getPendingKYC = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield userService.getPendingKYC();
-    res.send((0, response_helper_1.createResponse)(result));
+exports.updateKYCStatus = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId } = req.params;
+    const { kycCompleted, isActive } = req.body;
+    const existingUser = yield user_schema_1.default.findById(userId);
+    if (!existingUser) {
+        res.status(404).json({
+            success: false,
+            message: "User not found.",
+        });
+        return; // Exit the function after sending the response
+    }
+    const updatedUser = yield userService.updateUser(userId, Object.assign(Object.assign({}, existingUser), { kycCompleted,
+        isActive }));
+    res.json({
+        success: true,
+        message: "User KYC and active status updated successfully",
+        data: updatedUser,
+    });
 }));

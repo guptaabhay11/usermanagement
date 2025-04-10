@@ -32,21 +32,21 @@ app.use(bodyParser.json());
 app.use(express.json());
 
 const initApp = async (): Promise<void> => {
-    // init mongodb
+    
     await initDB();
     
   
-    // passport init
+    
     initPassport();
   
-    // set base path to /api
+    
     app.use("/api", routers);
   
     app.get("/", (req: Request, res: Response) => {
       res.send({ status: "ok" });
     });
   
-    // error handler
+    
     app.use(errorHandler);
     http.createServer(app).listen(port, () => {
       console.log("Server is runnuing on port", port);

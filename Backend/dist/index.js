@@ -31,16 +31,12 @@ app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use(body_parser_1.default.json());
 app.use(express_1.default.json());
 const initApp = () => __awaiter(void 0, void 0, void 0, function* () {
-    // init mongodb
     yield (0, database_services_1.initDB)();
-    // passport init
     (0, passport_jwt_service_1.initPassport)();
-    // set base path to /api
     app.use("/api", routes_1.default);
     app.get("/", (req, res) => {
         res.send({ status: "ok" });
     });
-    // error handler
     app.use(error_handler_middleware_1.default);
     http_1.default.createServer(app).listen(port, () => {
         console.log("Server is runnuing on port", port);

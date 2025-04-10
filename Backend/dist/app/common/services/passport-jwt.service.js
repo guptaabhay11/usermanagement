@@ -56,13 +56,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.decodeToken = exports.createUserTokens = exports.initPassport = void 0;
+exports.decodeToken = exports.createAdminTokens = exports.createUserTokens = exports.initPassport = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
-const http_errors_1 = __importDefault(require("http-errors"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const passport_1 = __importDefault(require("passport"));
 const passport_jwt_1 = require("passport-jwt");
 const passport_local_1 = require("passport-local");
+const http_errors_1 = __importDefault(require("http-errors"));
 const userService = __importStar(require("../../user/user.service"));
 const isValidPassword = function (value, password) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -72,7 +72,7 @@ const isValidPassword = function (value, password) {
 };
 const initPassport = () => {
     passport_1.default.use(new passport_jwt_1.Strategy({
-        secretOrKey: process.env.JWT_ACCESS_SECRET,
+        secretOrKey: process.env.JWT_SECRET,
         jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
     }, (token, done) => __awaiter(void 0, void 0, void 0, function* () {
         try {
@@ -88,16 +88,16 @@ const initPassport = () => {
         passwordField: "password",
     }, (email, password, done) => __awaiter(void 0, void 0, void 0, function* () {
         try {
-            const user = yield userService.getUserByEmail(email, true);
+            const user = yield userService.getUserByEmail(email);
             if (user == null) {
-                done((0, http_errors_1.default)(401, "Invalid email or password"), false);
+                done((0, http_errors_1.default)(401, "User not found!"), false);
                 return;
             }
-            if (!user.active) {
+            if (!user.isActive) {
                 done((0, http_errors_1.default)(401, "User is inactive"), false);
                 return;
             }
-            const validate = yield isValidPassword(password, user.password);
+            const validate = yield isValidPassword(password, user.password || "");
             if (!validate) {
                 done((0, http_errors_1.default)(401, "Invalid email or password"), false);
                 return;
@@ -112,20 +112,21 @@ const initPassport = () => {
 };
 exports.initPassport = initPassport;
 const createUserTokens = (user) => {
-    var _a, _b;
-    const accessTokenSecret = (_a = process.env.JWT_ACCESS_SECRET) !== null && _a !== void 0 ? _a : "";
-    const refreshTokenSecret = (_b = process.env.JWT_REFRESH_SECRET) !== null && _b !== void 0 ? _b : "";
-    const payload = {
-        _id: user._id,
-        email: user.email,
-        role: user.role,
-    };
-    const accessToken = jsonwebtoken_1.default.sign(payload, accessTokenSecret, { expiresIn: "15m" });
-    const refreshToken = jsonwebtoken_1.default.sign(payload, refreshTokenSecret, { expiresIn: "7d" });
-    return { accessToken, refreshToken };
+    var _a;
+    const jwtSecret = (_a = process.env.JWT_SECRET) !== null && _a !== void 0 ? _a : "";
+    const token = jsonwebtoken_1.default.sign(user, jwtSecret);
+    return { accessToken: token, refreshToken: "" };
 };
 exports.createUserTokens = createUserTokens;
+const createAdminTokens = (admin) => {
+    var _a;
+    const jwtSecret = (_a = process.env.JWT_SECRET) !== null && _a !== void 0 ? _a : "";
+    const token = jsonwebtoken_1.default.sign(admin, jwtSecret);
+    return { accessToken: token, refreshToken: "" };
+};
+exports.createAdminTokens = createAdminTokens;
 const decodeToken = (token) => {
+    // const jwtSecret = process.env.JWT_SECRET ?? "";
     const decode = jsonwebtoken_1.default.decode(token);
     return decode;
 };

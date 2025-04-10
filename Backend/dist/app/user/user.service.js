@@ -8,79 +8,151 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPendingKYC = exports.getPendingOnboarding = exports.getActiveSessions = exports.getRegisteredUsersByDate = exports.completeRegistration = exports.inviteUser = exports.getUserByEmail = exports.getAllUser = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUser = exports.createUser = void 0;
-const user_schema_1 = require("./user.schema");
+exports.updateKYCStatus = exports.inviteUser = exports.resendEmailService = exports.getDashboardStats = exports.blockUser = exports.updatePassword = exports.generateRefreshToken = exports.generateAccessToken = exports.getUserByEmail = exports.getAllUser = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUser = exports.createUser = void 0;
+const bcrypt_1 = __importDefault(require("bcrypt"));
+const user_schema_1 = __importDefault(require("./user.schema"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const user_schema_2 = __importDefault(require("./user.schema"));
+const sendEmail_1 = require("../common/helper/sendEmail");
 const createUser = (data) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.create(Object.assign(Object.assign({}, data), { active: true }));
-    return result.toObject();
+    const result = yield user_schema_1.default.create(Object.assign(Object.assign({}, data), { active: true }));
+    return result;
 });
 exports.createUser = createUser;
 const updateUser = (id, data) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.findOneAndUpdate({ _id: id }, data, {
+    const result = yield user_schema_1.default.findOneAndUpdate({ _id: id }, data, {
         new: true,
     });
     return result;
 });
 exports.updateUser = updateUser;
 const editUser = (id, data) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.findOneAndUpdate({ _id: id }, data);
+    const result = yield user_schema_1.default.findOneAndUpdate({ _id: id }, data);
     return result;
 });
 exports.editUser = editUser;
 const deleteUser = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.deleteOne({ _id: id });
+    const result = yield user_schema_1.default.deleteOne({ _id: id });
     return result;
 });
 exports.deleteUser = deleteUser;
 const getUserById = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.findById(id).lean();
+    const result = yield user_schema_1.default.findById(id);
     return result;
 });
 exports.getUserById = getUserById;
 const getAllUser = () => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.find({}).lean();
+    const result = yield user_schema_1.default.find({}).lean();
     return result;
 });
 exports.getAllUser = getAllUser;
-const getUserByEmail = (email_1, ...args_1) => __awaiter(void 0, [email_1, ...args_1], void 0, function* (email, withPassword = false) {
-    if (withPassword) {
-        const result = yield user_schema_1.UserSchema.findOne({ email }).select('+password').lean();
-        return result;
-    }
-    const result = yield user_schema_1.UserSchema.findOne({ email }).lean();
+const getUserByEmail = (email) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield user_schema_1.default.findOne({ email }).lean();
     return result;
 });
 exports.getUserByEmail = getUserByEmail;
-const inviteUser = (data) => __awaiter(void 0, void 0, void 0, function* () {
-    //send a mail to the user, the mail should be come form the admin-invite
-    //the email should look like this http://localhost:3000/complete-registration
-    const result = yield user_schema_1.UserSchema.create(Object.assign(Object.assign({}, data), { active: false }));
-    return result.toObject();
+const generateAccessToken = (id, role) => {
+    return jsonwebtoken_1.default.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: "15m" });
+};
+exports.generateAccessToken = generateAccessToken;
+const generateRefreshToken = (id, role) => {
+    return jsonwebtoken_1.default.sign({ id, role }, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
+};
+exports.generateRefreshToken = generateRefreshToken;
+const updatePassword = (email, newPassword) => __awaiter(void 0, void 0, void 0, function* () {
+    const hashedPassword = yield bcrypt_1.default.hash(newPassword, 12);
+    const user = yield user_schema_1.default.findOneAndUpdate({ email }, { password: hashedPassword }, { new: true } // Return the updated document
+    );
+    if (!user) {
+        throw new Error("User not found");
+    }
+    return user;
+});
+exports.updatePassword = updatePassword;
+const blockUser = function (id, isBlocked) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!id) {
+            throw new Error("User not found");
+        }
+        const user = yield user_schema_1.default.findByIdAndUpdate({ _id: id }, { isBlocked: isBlocked }, { new: true, }).select("-password");
+        return user;
+    });
+};
+exports.blockUser = blockUser;
+const getDashboardStats = (startDate, endDate) => __awaiter(void 0, void 0, void 0, function* () {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    // Users registered within the date range
+    const registeredUsers = yield user_schema_1.default.find({
+        createdAt: { $gte: start, $lte: end },
+    });
+    // Active sessions
+    const activeSessions = yield user_schema_2.default.countDocuments({ isActive: true });
+    //Pending onboarding
+    const pendingOnboarding = yield user_schema_1.default.countDocuments({ onboardingStatus: "pending" });
+    // Pending KYC
+    const pendingKYC = yield user_schema_1.default.countDocuments({ kycCompleted: false });
+    return {
+        registeredUserCount: registeredUsers.length,
+        registeredUsers, // Optional: Include user data
+        activeSessionCount: activeSessions,
+        pendingOnboardingCount: pendingOnboarding,
+        pendingKYCCount: pendingKYC,
+    };
+});
+exports.getDashboardStats = getDashboardStats;
+const resendEmailService = (email, subject, emailBody) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!email) {
+        throw new Error("Email address is required");
+    }
+    // Find the user
+    const user = yield user_schema_1.default.findOne({ email });
+    if (!user) {
+        throw new Error("User not found");
+    }
+    try {
+        // Send the email
+        const mailSent = yield (0, sendEmail_1.sendEmail)({
+            email: email,
+            url: ``,
+            sub: subject,
+            html: emailBody
+        });
+        return { success: true, message: "Email sent successfully" };
+    }
+    catch (error) {
+        console.error("Error sending email:", error);
+        throw new Error("Failed to send email");
+    }
+});
+exports.resendEmailService = resendEmailService;
+const inviteUser = (email, subject, emailBody) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_schema_1.default.findOne({ email });
+    if (user) {
+        throw new Error("User already exist!");
+    }
+    try {
+        // Send the email
+        const mailSent = yield (0, sendEmail_1.sendEmail)({
+            email: email,
+            url: ``,
+            sub: subject,
+            html: emailBody
+        });
+        return { success: true, message: "Email sent successfully" };
+    }
+    catch (error) {
+        console.error("Error sending email:", error);
+        throw new Error("Failed to send email");
+    }
 });
 exports.inviteUser = inviteUser;
-const completeRegistration = (id, data) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.findOneAndUpdate({ _id: id }, data);
-    return result;
+const updateKYCStatus = (id, kycStatus, activeStatus) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_schema_1.default.findByIdAndUpdate({ _id: id }, { kycCompleted: kycStatus, isActive: activeStatus }, { new: true, }).select("-password");
+    return user;
 });
-exports.completeRegistration = completeRegistration;
-const getRegisteredUsersByDate = (date) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.find({ createdAt: { $gte: new Date(date) } }).lean();
-    return result;
-});
-exports.getRegisteredUsersByDate = getRegisteredUsersByDate;
-const getActiveSessions = () => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.find({ active: true }).lean();
-    return result;
-});
-exports.getActiveSessions = getActiveSessions;
-const getPendingOnboarding = () => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.find({ active: false }).lean();
-    return result;
-});
-exports.getPendingOnboarding = getPendingOnboarding;
-const getPendingKYC = () => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield user_schema_1.UserSchema.find({ active: false }).lean(); //UserSchema doesn't have kyc
-    return result;
-});
-exports.getPendingKYC = getPendingKYC;
+exports.updateKYCStatus = updateKYCStatus;

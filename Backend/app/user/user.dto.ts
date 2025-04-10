@@ -1,11 +1,21 @@
-import {type BaseSchema } from "../common/dto/base.dto";
+
+import { type BaseSchema } from "../common/dto/base.dto";
 
 export interface IUser extends BaseSchema {
-    name: string;
-    email: string;
-    active?: boolean;
-    role: "USER" | "ADMIN";
-    password: string;
-    blocked: boolean;
+        name: string;
+        email: string;
+        isBlocked?: boolean;
+        isVerified: boolean;
+        isActive: boolean;
+        role: "USER" | "ADMIN";
+        kycCompleted?: boolean
+        password?: string
+        refreshToken:string
+}
 
+
+export interface IAdmin extends BaseSchema {
+        name: string;
+        email: string;
+        password: string;
 }
