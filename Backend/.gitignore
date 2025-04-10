@@ -2,5 +2,5 @@ src
 package-lock.json
 node_modules
 .env
-.DS_Strore
+.DS_Store
 dist
