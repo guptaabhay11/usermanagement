@@ -15,7 +15,7 @@ router
         .get("/dashboard-stats", userController.getDashboardStats)
         .get("/:id", userController.getUserById)
        
-        .post("/", userValidator.createUser, catchError, userController.createUser)
+        .post("/register", userValidator.createUser, catchError, userController.createUser)
         .put("/set-status", userController.changeBlockStatus)
         
         
