@@ -8,23 +8,26 @@ import { roleAuth } from "../common/middleware/role-auth.middleware";
 const router = Router();
 
 router
-        .get("/", roleAuth(["ADMIN"]), userController.getAllUser)
-        .post("/invite-user", roleAuth(["ADMIN"]), userValidator.inviteUser, catchError, userController.createUser)
+        .get("/", roleAuth(["ADMIN"]), userController.getAllUser) // return all the user, accessable by admin only
+        .post("/invite-user", userValidator.inviteUser, catchError, userController.createUser) //by sending mail
+        .get("/me", catchError, userController.getUserById) // get the user details of the logged in user
         
-        .post("/resend-mail", catchError, userController.resendEmail)
+        .post("/resend-mail", catchError, userController.resendEmail) // resend the mail to the user who has not verified their email yet
         .get("/dashboard-stats", userController.getDashboardStats)
         .get("/:id", userController.getUserById)
+
+        .patch("/update/", catchError, userController.updateUserController) //update user details
        
-        .post("/register", userValidator.createUser, catchError, userController.createUser)
+        .post("/register", userValidator.createUser, catchError, userController.createUser) //admin register route
         .put("/set-status", userController.changeBlockStatus)
         
         
-        .post("/login", userValidator.loginUser, catchError, userController.loginUser)
-        .post("/refresh", userValidator.refreshToken, catchError, userController.refresh)
-        .put("/update-kyc-status/:userId",userValidator.updateKYCStatus,catchError, userController.updateKYCStatus)
+        .post("/login", userValidator.loginUser, catchError, userController.loginUser) //login route
+        .post("/refresh", userValidator.refreshToken, catchError, userController.refresh) //jwt expired route
+        .put("/update-kyc-status/:userId",userValidator.updateKYCStatus,catchError, userController.updateKYCStatus) //update kyc
 
         
-        .post("/set-password/:token",catchError ,userController.setPassword)
+        .post("/set-password/:token",catchError ,userController.setPassword) //send mail to the user who has not set their password yet
         .post("/forgot-password/", catchError, userController.forgotPassword)
         .patch("/update-password/:token", catchError, userController.updatePassword)
 

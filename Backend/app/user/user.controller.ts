@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken'
 import transporter from "../node-mailer/config";
 import { sendEmail } from "../common/helper/sendEmail";
 import { IUser } from "./user.dto";
+import userSchema from "./user.schema";
 
 
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
@@ -15,13 +16,14 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
     const existingUser = await userService.getUserByEmail(email);
     
     if (existingUser) {
-        throw new Error("User already exists");
+         res.status(409).send(createResponse(null, "User already exists"));
+
     }
 
     const result = await userService.createUser(req.body);
     
     const token = jwt.sign({ email }, process.env.JWT_SECRET as string, { expiresIn: "60m" });
-    const fullUrl = `http://localhost:5000/api/user/set-password/${token}`;
+    const fullUrl = `http://localhost:5000/api/users/set-password/${token}`;
 
     const mailSent = await sendEmail({
         email: email,
@@ -101,11 +103,52 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
     }
 })
 
-export const updateUser = asyncHandler(async (req: Request, res: Response) => {
-    const result = await userService.updateUser(req.params.id, req.body);
-    res.send(createResponse(result, "User updated sucssefully"))
-});
-
+interface JwtPayload {
+    userId: string;  // Assuming the JWT payload has the userId
+  }
+  
+  export const updateUserController = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Step 1: Extract the JWT token from the Authorization header
+      const token = req.headers['authorization']?.split(' ')[1];  // Assumes the token is in the format "Bearer <token>"
+  
+      if (!token) {
+         res.status(403).json(createResponse(null, "No token provided"));
+         return
+      }
+  
+      // Step 2: Decode and verify the token to get the userId
+      let decoded: JwtPayload;
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET_KEY as string) as JwtPayload;
+      } catch (err) {
+         res.status(401).json(createResponse(null, "Invalid or expired token"));
+         return
+      }
+  
+      const userId = decoded.userId;  // Now you have the userId from the decoded token
+      console.log("User ID from Authorization Header:", userId);
+  
+      // Step 3: Prepare the fields to update
+      const updateFields: any = {};
+  
+      if (req.body.hasOwnProperty("kycCompleted")) {
+        updateFields.kycCompleted = req.body.kycCompleted;
+      }
+      if (req.body.hasOwnProperty("isActive")) {
+        updateFields.isActive = req.body.isActive;
+      }
+  
+      // Step 4: Call the service to update user KYC status or account status
+      const result = await userService.updateKYCStatus(userId, updateFields);
+  
+      // Step 5: Send a successful response
+      res.send(createResponse(result, "User updated successfully"));
+    } catch (error) {
+      console.error("❌ Error in updateUserController:", error);
+      res.status(500).send(createResponse(null, "Internal Server Error"));
+    }
+  };  
 export const editUser = asyncHandler(async (req: Request, res: Response) => {
     const result = await userService.editUser(req.params.id, req.body);
     res.send(createResponse(result, "User updated sucssefully"))
@@ -116,12 +159,43 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
     res.send(createResponse(result, "User deleted sucssefully"))
 });
 
-
 export const getUserById = asyncHandler(async (req: Request, res: Response) => {
-    const result = await userService.getUserById(req.params.id);
-    res.send(createResponse(result))
-});
+    const userId = req.params.id;
+    console.log("Fetching user with ID:", userId);
+  
+    const user = await userService.getUserById(userId);  // Adjust the service call as necessary
+    if (!user) {
+       res.status(404).json({ success: false, message: "User not found" });
+       return;
+    }
+  
+    res.json(createResponse(user));  // Adjust the response utility as necessary
+  });
 
+
+
+export const getMe = asyncHandler(async (req: Request, res: Response) => {
+    try {
+      // Use the user ID from the decoded token (req.user.id)
+      if (!req.user) {
+          res.status(401).json({ success: false, message: "Unauthorized: User not found in request" });
+          return;
+      }
+      const userId = req.user._id;
+      console.log("Fetching user with ID:", userId);
+  
+      const user = await userService.getUserById(userId);  // Call your service to get the user
+      if (!user) {
+         res.status(404).json({ success: false, message: "User not found" });
+      }
+  
+      // Send the user data
+      res.json(createResponse(user));
+    } catch (err) {
+      console.error("Error fetching user:", err);
+      res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
+  });
 
 export const getAllUser = asyncHandler(async (req: Request, res: Response) => {
     const result = await userService.getAllUser();
@@ -312,7 +386,7 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
     let url = jwt.sign({ email }, process.env.JWT_SECRET as string, { expiresIn: "15m" })
     const mailSent = await sendEmail({
         email: email,
-        url: `http://localhost:5000/api/user/update-password/${url}`,
+        url: `http://localhost:5000/api/users/update-password/${url}`,
         sub: "Set Password",
         html: `In order to set your password please follow this link ${url}`
     })
