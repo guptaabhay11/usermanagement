@@ -46,8 +46,7 @@ router
     .post("/resend-mail", catch_error_middleware_1.catchError, userController.resendEmail) // resend the mail to the user who has not verified their email yet
     .get("/dashboard-stats", userController.getDashboardStats)
     .get("/:id", userController.getUserById)
-    .patch("/update/", catch_error_middleware_1.catchError, userController.updateUserController) //update user details
-    .post("/register", userValidator.createUser, catch_error_middleware_1.catchError, userController.createUser) //admin register route
+    .post("/", userValidator.createUser, catch_error_middleware_1.catchError, userController.createUser)
     .put("/set-status", userController.changeBlockStatus)
     .post("/login", userValidator.loginUser, catch_error_middleware_1.catchError, userController.loginUser) //login route
     .post("/refresh", userValidator.refreshToken, catch_error_middleware_1.catchError, userController.refresh) //jwt expired route
