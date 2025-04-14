@@ -61,7 +61,8 @@ exports.createUser = (0, express_async_handler_1.default)((req, res) => __awaite
     }
     const result = yield userService.createUser(req.body);
     const token = jsonwebtoken_1.default.sign({ email }, process.env.JWT_SECRET, { expiresIn: "60m" });
-    const fullUrl = `http://localhost:5000/api/users/set-password/${token}`;
+    const fullUrl = `http://localhost:3000/set-password/${token}`;
+    console.log(fullUrl);
     const mailSent = yield (0, sendEmail_1.sendEmail)({
         email: email,
         url: fullUrl,
@@ -98,7 +99,6 @@ exports.loginUser = (0, express_async_handler_1.default)((req, res) => __awaiter
     yield user.save();
     res.cookie("AccessToken", accessToken, {
         httpOnly: true, // Ensures the cookie can't be accessed by client-side JavaScript
-        secure: process.env.NODE_ENV === "production", // Set to true in production (HTTPS only)
         maxAge: 15 * 60 * 1000, // Set the cookie expiry time (15 minutes in milliseconds)
     });
     const result = { accessToken, refreshToken };
@@ -341,6 +341,7 @@ exports.resendEmail = (0, express_async_handler_1.default)((req, res) => __await
 exports.forgotPassword = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { email } = req.body;
     let url = jsonwebtoken_1.default.sign({ email }, process.env.JWT_SECRET, { expiresIn: "15m" });
+    console.log("forget password url", url);
     const mailSent = yield (0, sendEmail_1.sendEmail)({
         email: email,
         url: `http://localhost:5000/api/users/update-password/${url}`,

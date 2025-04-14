@@ -3,6 +3,7 @@ import cors from "cors";
 import express, { type Express, type Request, type Response } from "express";
 import helmet from "helmet";
 import http from "http";
+import cookieParser from "cookie-parser";
 
 
 
@@ -30,6 +31,7 @@ app.use(cors({
   credentials: true, // This allows cookies and credentials to be sent
 }));
 app.use(helmet())
+app.use(cookieParser())
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(express.json());

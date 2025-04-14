@@ -18,6 +18,7 @@ const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const helmet_1 = __importDefault(require("helmet"));
 const http_1 = __importDefault(require("http"));
+const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const error_handler_middleware_1 = __importDefault(require("./app/common/middleware/error-handler.middleware"));
 const database_services_1 = require("./app/common/services/database.services");
 const passport_jwt_service_1 = require("./app/common/services/passport-jwt.service");
@@ -30,6 +31,7 @@ app.use((0, cors_1.default)({
     credentials: true, // This allows cookies and credentials to be sent
 }));
 app.use((0, helmet_1.default)());
+app.use((0, cookie_parser_1.default)());
 app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use(body_parser_1.default.json());
 app.use(express_1.default.json());

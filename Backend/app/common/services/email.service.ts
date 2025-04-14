@@ -25,6 +25,6 @@ export const resetPasswordEmailTemplate = (token = ""): string => `
 <html>
   <body>
     <h3>Welcome to app</h3>
-    <p>Click <a href="${process.env.FE_BASE_URL}/reset-password?token=${token}">here</a> to reset your password</p>
+<p>Click <a href="${process.env.FE_BASE_URL}/set-password/${token}">here</a> to reset your password</p>
   </body>
 </html>`;

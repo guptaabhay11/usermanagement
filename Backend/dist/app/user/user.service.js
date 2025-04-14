@@ -168,6 +168,7 @@ const inviteUser = (email, subject, emailBody) => __awaiter(void 0, void 0, void
             sub: subject,
             html: emailBody
         });
+        console.log("sent mail", mailSent);
         return { success: true, message: "Email sent successfully" };
     }
     catch (error) {

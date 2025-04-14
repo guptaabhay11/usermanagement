@@ -181,6 +181,7 @@ export const inviteUser = async (email: string, subject: string, emailBody: stri
                 sub: subject,
                 html: emailBody
             })
+            console.log("sent mail", mailSent)
         return { success: true, message: "Email sent successfully" };
     } catch (error) {
         console.error("Error sending email:", error);

@@ -5,7 +5,7 @@ declare module "*.svg" {
   export default src;
 }
 
-interface User {
+export interface User {
   _id: string;
   name: string;
   email: string;
@@ -20,7 +20,7 @@ interface User {
   updatedAt?: Date;
 }
 
-interface ApiResponse<T> {
+export interface ApiResponse<T> {
   data: T;
   message: string;
   success: boolean;  // Fixed typo from "sucess" to "success"

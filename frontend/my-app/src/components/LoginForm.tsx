@@ -17,9 +17,14 @@ import * as yup from "yup";
 import { useLoginMutation } from "../services/api";
 import PasswordInput from "./PasswordInput";
 import { jwtDecode } from 'jwt-decode';
+import { useDispatch } from 'react-redux';
+import { setTokens } from '../store/reducers/authReducer';
 
 interface DecodedToken {
+  id?: string;
   role?: 'USER' | 'ADMIN';
+  name?: string;
+  email?: string;
   [key: string]: any;
 }
 
@@ -38,6 +43,7 @@ export default function LoginForm() {
   const theme = useTheme();
   const [loginUser] = useLoginMutation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -57,27 +63,32 @@ export default function LoginForm() {
     try {
       // 1. Attempt login
       const loginResponse = await loginUser(data).unwrap();
+      console.log("loginDetails", loginResponse)
       
       if (!loginResponse?.success || !loginResponse.data) {
         throw new Error(loginResponse?.message || "Authentication failed");
       }
 
-      // 2. Store tokens
+      // 2. Store tokens and user data
       const { accessToken, refreshToken } = loginResponse.data;
-      localStorage.setItem("accessToken", accessToken);
-      localStorage.setItem("refreshToken", refreshToken);
+      
+      // Dispatch action to store tokens in Redux and localStorage
+      dispatch(setTokens({ 
+        accessToken, 
+        refreshToken 
+      }));
 
-      // 3. Decode token to get role
+      // 3. Decode token to get user information
       const decodedToken = jwtDecode<DecodedToken>(accessToken);
       
-      if (!decodedToken.role) {
-        throw new Error("No role found in token");
+      if (!decodedToken.id || !decodedToken.role) {
+        throw new Error("Invalid token payload");
       }
 
       // 4. Redirect based on role
       const redirectPath = decodedToken.role === "ADMIN" 
         ? "/admin/dashboard" 
-        :  `/user/${decodedToken.id}/dashboard`;
+        : `/user/dashboard`; // Changed from using ID in URL
       
       navigate(redirectPath, { replace: true });
       toast.success("Login successful!");
@@ -86,8 +97,8 @@ export default function LoginForm() {
       console.error("Login error:", error);
       
       // Clear tokens on error
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
 
       let errorMessage = "Login failed. Please try again.";
       

@@ -1,5 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { RootState } from "../store/store";
+import {User, ApiResponse} from '../types'
+
 
 const baseUrl = "http://localhost:5000/api";
 
@@ -7,7 +9,7 @@ export const authApi = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl,
-    credentials: "include", // <- 🔥 This is key
+    credentials: "include", 
 
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState).auth.accessToken;
@@ -64,6 +66,10 @@ updateUser: builder.mutation<ApiResponse<User>, { userId: string; [key: string]:
       query: () => `/users/dashboard-stats`,
     }),
 
+    getAllUsers: builder.query<ApiResponse<User[]>, void>({
+      query: () => '/users',
+    }),
+
     getUserById: builder.query<ApiResponse<User>, string>({
       query: (id) => `/users/${id}`,
     }),
@@ -77,13 +83,16 @@ updateUser: builder.mutation<ApiResponse<User>, { userId: string; [key: string]:
     }),
 
     updateKYCStatus: builder.mutation<ApiResponse<User>, { userId: string; kycStatus: string }>({
-      query: ({ userId, ...body }) => ({ url: `/users/update-kyc-status/${userId}`, method: "PUT", body }),
+      query: ({ userId, ...body }) => ({ url: `/users/update-kyc-status/${userId}`, method: "PATCH", body }),
     }),
 
     setPassword: builder.mutation<ApiResponse<User>, { token: string; password: string; confirmPassword: string }>({
-      query: ({ token, ...body }) => ({ url: `/users/set-password/${token}`, method: "POST", body }),
+      query: ({ token, ...body }) => ({
+        url: `/users/set-password/${token}`,
+        method: "POST",
+        body
+      }),
     }),
-
     forgotPassword: builder.mutation<ApiResponse<{ message: string }>, { email: string }>({
       query: (body) => ({ url: `/users/forgot-password`, method: "POST", body }),
     }),
@@ -114,4 +123,5 @@ export const {
   useForgotPasswordMutation,
   useUpdatePasswordMutation,
   useLogoutMutation,
+  useGetAllUsersQuery,
 } = authApi;

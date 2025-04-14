@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RootState } from '../store/store'; // Adjust the path to your store file
+import { RootState } from '../store/store';
 import { useSelector } from 'react-redux';
 import {
   Container,
@@ -28,7 +28,7 @@ const UserDashboard = () => {
   const [localUser, setLocalUser] = useState(user);
 
   const handleToggle = async (field: string, value: boolean) => {
-    if (!user?._id) {
+    if (!user?.id) {
       toast.error('User ID is missing!');
       return;
     }
@@ -36,14 +36,21 @@ const UserDashboard = () => {
   
     try {
       const updatedUser = await updateUser({
-        userId: user._id,
+        userId: user.id,
         [field]: value,
       }).unwrap();
   
       setLocalUser({
-        ...updatedUser.data,
-        createdAt: updatedUser.data.createdAt?.toString() || '',
+        id: updatedUser.data._id,
+        role: updatedUser.data.role,
+        name: updatedUser.data.name,
+        email: updatedUser.data.email,
+        kycCompleted: updatedUser.data.kycCompleted,
+        isActive: updatedUser.data.isActive,
+        isVerified: updatedUser.data.isVerified,
+        createdAt: updatedUser.data.createdAt ? new Date(updatedUser.data.createdAt) : null,
       });
+      
   
       toast.success('Profile updated successfully!');
     } catch (error) {
@@ -54,7 +61,7 @@ const UserDashboard = () => {
   const sections: DashboardSection[] = [
     {
       title: "Finish KYC Verification",
-      description: "Just a quick identity check 👍",
+      description: "Just a quick identity check ",
       completed: localUser?.kycCompleted || false,
       field: 'kycCompleted'
     },
@@ -104,7 +111,7 @@ const UserDashboard = () => {
                     control={
                       <Switch
                         checked={section.completed}
-                        onChange={(e) => handleToggle(section.field, e.target.checked)}
+                        // onChange={(e) => handleToggle(section.field, e.target.checked)}
                         disabled={isLoading}
                       />
                     }
@@ -127,7 +134,7 @@ const UserDashboard = () => {
 
           <Box sx={{ mt: 3, textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
-              Your progress is always saved with love! 💖
+              Your progress is always saved with love! 
             </Typography>
           </Box>
         </CardContent>

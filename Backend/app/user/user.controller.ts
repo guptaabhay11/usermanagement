@@ -23,7 +23,9 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
     const result = await userService.createUser(req.body);
     
     const token = jwt.sign({ email }, process.env.JWT_SECRET as string, { expiresIn: "60m" });
-    const fullUrl = `http://localhost:5000/api/users/set-password/${token}`;
+    const fullUrl = `http://localhost:3000/set-password/${token}`;
+
+    console.log(fullUrl)
 
     const mailSent = await sendEmail({
         email: email,
@@ -76,7 +78,6 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
 
   res.cookie("AccessToken", accessToken, {
     httpOnly: true, // Ensures the cookie can't be accessed by client-side JavaScript
-    secure: process.env.NODE_ENV === "production", // Set to true in production (HTTPS only)
     maxAge: 15 * 60 * 1000, // Set the cookie expiry time (15 minutes in milliseconds)
   });
 
@@ -384,6 +385,7 @@ export const resendEmail = asyncHandler(async (req: Request, res: Response) => {
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
     const {email} = req.body
     let url = jwt.sign({ email }, process.env.JWT_SECRET as string, { expiresIn: "15m" })
+    console.log("forget password url", url)
     const mailSent = await sendEmail({
         email: email,
         url: `http://localhost:5000/api/users/update-password/${url}`,
@@ -453,3 +455,4 @@ export const updateKYCStatus = asyncHandler(async (req: Request, res: Response) 
         data: updatedUser,
     });
 });
+
