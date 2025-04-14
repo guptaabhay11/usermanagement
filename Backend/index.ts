@@ -25,7 +25,10 @@ declare global {
 
 const app: Express = express();
 
-app.use(cors())
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true, // This allows cookies and credentials to be sent
+}));
 app.use(helmet())
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());

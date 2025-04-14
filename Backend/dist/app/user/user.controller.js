@@ -45,7 +45,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateKYCStatus = exports.updatePassword = exports.forgotPassword = exports.resendEmail = exports.getDashboardStats = exports.changeBlockStatus = exports.setPassword = exports.refresh = exports.getAllUser = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUser = exports.refreshToken = exports.loginUser = exports.createUser = void 0;
+exports.updateKYCStatus = exports.updatePassword = exports.forgotPassword = exports.resendEmail = exports.getDashboardStats = exports.changeBlockStatus = exports.setPassword = exports.refresh = exports.getAllUser = exports.getMe = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUserController = exports.refreshToken = exports.loginUser = exports.createUser = void 0;
 const user_schema_1 = __importDefault(require("./user.schema"));
 const userService = __importStar(require("./user.service"));
 const response_helper_1 = require("../common/helper/response.helper");
@@ -57,11 +57,11 @@ exports.createUser = (0, express_async_handler_1.default)((req, res) => __awaite
     const { email } = req.body;
     const existingUser = yield userService.getUserByEmail(email);
     if (existingUser) {
-        throw new Error("User already exists");
+        res.status(409).send((0, response_helper_1.createResponse)(null, "User already exists"));
     }
     const result = yield userService.createUser(req.body);
     const token = jsonwebtoken_1.default.sign({ email }, process.env.JWT_SECRET, { expiresIn: "60m" });
-    const fullUrl = `http://localhost:5000/api/user/set-password/${token}`;
+    const fullUrl = `http://localhost:5000/api/users/set-password/${token}`;
     const mailSent = yield (0, sendEmail_1.sendEmail)({
         email: email,
         url: fullUrl,
@@ -119,10 +119,45 @@ exports.refreshToken = (0, express_async_handler_1.default)((req, res) => __awai
         throw new Error("Invalid refresh token");
     }
 }));
-exports.updateUser = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield userService.updateUser(req.params.id, req.body);
-    res.send((0, response_helper_1.createResponse)(result, "User updated sucssefully"));
-}));
+const updateUserController = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        // Step 1: Extract the JWT token from the Authorization header
+        const token = (_a = req.headers['authorization']) === null || _a === void 0 ? void 0 : _a.split(' ')[1]; // Assumes the token is in the format "Bearer <token>"
+        if (!token) {
+            res.status(403).json((0, response_helper_1.createResponse)(null, "No token provided"));
+            return;
+        }
+        // Step 2: Decode and verify the token to get the userId
+        let decoded;
+        try {
+            decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET_KEY);
+        }
+        catch (err) {
+            res.status(401).json((0, response_helper_1.createResponse)(null, "Invalid or expired token"));
+            return;
+        }
+        const userId = decoded.userId; // Now you have the userId from the decoded token
+        console.log("User ID from Authorization Header:", userId);
+        // Step 3: Prepare the fields to update
+        const updateFields = {};
+        if (req.body.hasOwnProperty("kycCompleted")) {
+            updateFields.kycCompleted = req.body.kycCompleted;
+        }
+        if (req.body.hasOwnProperty("isActive")) {
+            updateFields.isActive = req.body.isActive;
+        }
+        // Step 4: Call the service to update user KYC status or account status
+        const result = yield userService.updateKYCStatus(userId, updateFields);
+        // Step 5: Send a successful response
+        res.send((0, response_helper_1.createResponse)(result, "User updated successfully"));
+    }
+    catch (error) {
+        console.error("❌ Error in updateUserController:", error);
+        res.status(500).send((0, response_helper_1.createResponse)(null, "Internal Server Error"));
+    }
+});
+exports.updateUserController = updateUserController;
 exports.editUser = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield userService.editUser(req.params.id, req.body);
     res.send((0, response_helper_1.createResponse)(result, "User updated sucssefully"));
@@ -132,8 +167,35 @@ exports.deleteUser = (0, express_async_handler_1.default)((req, res) => __awaite
     res.send((0, response_helper_1.createResponse)(result, "User deleted sucssefully"));
 }));
 exports.getUserById = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield userService.getUserById(req.params.id);
-    res.send((0, response_helper_1.createResponse)(result));
+    const userId = req.params.id;
+    console.log("Fetching user with ID:", userId);
+    const user = yield userService.getUserById(userId); // Adjust the service call as necessary
+    if (!user) {
+        res.status(404).json({ success: false, message: "User not found" });
+        return;
+    }
+    res.json((0, response_helper_1.createResponse)(user)); // Adjust the response utility as necessary
+}));
+exports.getMe = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        // Use the user ID from the decoded token (req.user.id)
+        if (!req.user) {
+            res.status(401).json({ success: false, message: "Unauthorized: User not found in request" });
+            return;
+        }
+        const userId = req.user._id;
+        console.log("Fetching user with ID:", userId);
+        const user = yield userService.getUserById(userId); // Call your service to get the user
+        if (!user) {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+        // Send the user data
+        res.json((0, response_helper_1.createResponse)(user));
+    }
+    catch (err) {
+        console.error("Error fetching user:", err);
+        res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
 }));
 exports.getAllUser = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield userService.getAllUser();
@@ -281,7 +343,7 @@ exports.forgotPassword = (0, express_async_handler_1.default)((req, res) => __aw
     let url = jsonwebtoken_1.default.sign({ email }, process.env.JWT_SECRET, { expiresIn: "15m" });
     const mailSent = yield (0, sendEmail_1.sendEmail)({
         email: email,
-        url: `http://localhost:5000/api/user/update-password/${url}`,
+        url: `http://localhost:5000/api/users/update-password/${url}`,
         sub: "Set Password",
         html: `In order to set your password please follow this link ${url}`
     });

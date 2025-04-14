@@ -25,7 +25,10 @@ const routes_1 = __importDefault(require("./app/routes"));
 require('dotenv').config();
 const port = (_a = Number(process.env.PORT)) !== null && _a !== void 0 ? _a : 5000;
 const app = (0, express_1.default)();
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: 'http://localhost:3000',
+    credentials: true, // This allows cookies and credentials to be sent
+}));
 app.use((0, helmet_1.default)());
 app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use(body_parser_1.default.json());

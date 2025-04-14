@@ -10,12 +10,14 @@ export const createUser = async (data: IUser) => {
     return result;
 };
 
-export const updateUser = async (id: string, data: IUser) => {
+export const updateUser = async (id: string, data: Partial<IUser>) => {
+    console.log("Searching for user with ID:", id);
+
     const result = await UserSchema.findOneAndUpdate({ _id: id }, data, {
         new: true,
     });
     return result;
-};
+}
 
 export const editUser = async (id: string, data: Partial<IUser>) => {
     const result = await UserSchema.findOneAndUpdate({ _id: id }, data);
@@ -27,8 +29,31 @@ export const deleteUser = async (id: string) => {
     return result;
 };
 
+export const getMe = async (req: any, res: any) => {
+    try {
+        const userId = req.user?._id; // Assuming you have authentication middleware
+        if (!userId) {
+          return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+    
+        const role = await getUserById(userId as string); // Assuming this fetches the user role
+        res.status(200).json({ 
+          success: true,
+          data: { role },
+          message: 'Role fetched successfully'
+        });
+      } catch (error: any) {
+        res.status(400).json({
+          success: false,
+          message: error.message || 'Error fetching user role'
+        });
+      }
+};
+
 export const getUserById = async (id: string) => {
     const result = await UserSchema.findById(id)
+    console.log(id)
+    console.log(result)
     return result;
 };
 
@@ -163,11 +188,16 @@ export const inviteUser = async (email: string, subject: string, emailBody: stri
     }
 }
 
-export const updateKYCStatus = async (id: string, kycStatus: boolean, activeStatus: boolean) => {
+export const updateKYCStatus = async (
+    id: string,
+    updateData: Partial<{ kycCompleted: boolean; isActive: boolean }>
+  ) => {
     const user = await UserSchema.findByIdAndUpdate(
-        {_id: id},
-        {kycCompleted: kycStatus, isActive: activeStatus},
-        {new: true,}
-    ).select("-password")
+      id,
+      updateData,
+      { new: true }
+    ).select("-password");
+    console.log(id)
+  
     return user;
-}
+  };

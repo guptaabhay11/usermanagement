@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateKYCStatus = exports.inviteUser = exports.resendEmailService = exports.getDashboardStats = exports.blockUser = exports.updatePassword = exports.generateRefreshToken = exports.generateAccessToken = exports.getUserByEmail = exports.getAllUser = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUser = exports.createUser = void 0;
+exports.updateKYCStatus = exports.inviteUser = exports.resendEmailService = exports.getDashboardStats = exports.blockUser = exports.updatePassword = exports.generateRefreshToken = exports.generateAccessToken = exports.getUserByEmail = exports.getAllUser = exports.getUserById = exports.getMe = exports.deleteUser = exports.editUser = exports.updateUser = exports.createUser = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const user_schema_1 = __importDefault(require("./user.schema"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
@@ -24,6 +24,7 @@ const createUser = (data) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.createUser = createUser;
 const updateUser = (id, data) => __awaiter(void 0, void 0, void 0, function* () {
+    console.log("Searching for user with ID:", id);
     const result = yield user_schema_1.default.findOneAndUpdate({ _id: id }, data, {
         new: true,
     });
@@ -40,8 +41,32 @@ const deleteUser = (id) => __awaiter(void 0, void 0, void 0, function* () {
     return result;
 });
 exports.deleteUser = deleteUser;
+const getMe = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id; // Assuming you have authentication middleware
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+        const role = yield (0, exports.getUserById)(userId); // Assuming this fetches the user role
+        res.status(200).json({
+            success: true,
+            data: { role },
+            message: 'Role fetched successfully'
+        });
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message || 'Error fetching user role'
+        });
+    }
+});
+exports.getMe = getMe;
 const getUserById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield user_schema_1.default.findById(id);
+    console.log(id);
+    console.log(result);
     return result;
 });
 exports.getUserById = getUserById;
@@ -151,8 +176,9 @@ const inviteUser = (email, subject, emailBody) => __awaiter(void 0, void 0, void
     }
 });
 exports.inviteUser = inviteUser;
-const updateKYCStatus = (id, kycStatus, activeStatus) => __awaiter(void 0, void 0, void 0, function* () {
-    const user = yield user_schema_1.default.findByIdAndUpdate({ _id: id }, { kycCompleted: kycStatus, isActive: activeStatus }, { new: true, }).select("-password");
+const updateKYCStatus = (id, updateData) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_schema_1.default.findByIdAndUpdate(id, updateData, { new: true }).select("-password");
+    console.log(id);
     return user;
 });
 exports.updateKYCStatus = updateKYCStatus;

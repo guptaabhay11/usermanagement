@@ -11,6 +11,8 @@ export interface IUser extends BaseSchema {
         kycCompleted?: boolean
         password?: string
         refreshToken:string
+        profileCompleted?: boolean;
+        qualificationAdded?: boolean;
 }
 
 

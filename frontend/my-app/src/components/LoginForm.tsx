@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { yupResolver } from "@hookform/resolvers/yup";
 import {
   Box,
@@ -5,132 +6,190 @@ import {
   Card,
   CardContent,
   TextField,
-  Theme,
   Typography,
-  useTheme,
+  CircularProgress,
 } from "@mui/material";
-import { createStyles } from "@mui/styles";
-import { CSSProperties } from "react";
+import { useTheme } from "@mui/material/styles";
 import { useForm } from "react-hook-form";
 import { NavLink, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import * as yup from "yup";
 import { useLoginMutation } from "../services/api";
 import PasswordInput from "./PasswordInput";
+import { jwtDecode } from 'jwt-decode';
+
+interface DecodedToken {
+  role?: 'USER' | 'ADMIN';
+  [key: string]: any;
+}
 
 const validation = yup.object({
   email: yup.string().email("Email is invalid").required("Email is required"),
   password: yup
     .string()
     .required("Password is required")
-    .min(5, "Minimumn 5 chars are required")
-    .max(16, "Miximumn 16 chars allowed"),
+    .min(5, "Minimum 5 characters required")
+    .max(16, "Maximum 16 characters allowed"),
 });
 
-const useStyle = (theme: Theme) =>
-  createStyles({
-    root: {
-      maxWidth: 400,
-      flex: 1,
-      mx: "auto",
-    },
-    input: {
-      mt: 2,
-    },
-    button: {
-      my: 2,
-    },
-    link: {
-      color: theme.palette.primary.main,
-    },
-  });
-
-type FormData = typeof validation.__outputType;
+type FormData = yup.InferType<typeof validation>;
 
 export default function LoginForm() {
   const theme = useTheme();
-  const style = useStyle(theme);
   const [loginUser] = useLoginMutation();
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const {
     register,
     handleSubmit,
     formState: { errors, isValid },
   } = useForm<FormData>({
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
     resolver: yupResolver(validation),
+    mode: "onChange",
   });
 
   const onSubmit = async (data: FormData) => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
     try {
-      await loginUser(data).unwrap();
-      toast.success("User logged in successfully!");
-      navigate("/", { replace: true });
+      // 1. Attempt login
+      const loginResponse = await loginUser(data).unwrap();
+      
+      if (!loginResponse?.success || !loginResponse.data) {
+        throw new Error(loginResponse?.message || "Authentication failed");
+      }
+
+      // 2. Store tokens
+      const { accessToken, refreshToken } = loginResponse.data;
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
+      // 3. Decode token to get role
+      const decodedToken = jwtDecode<DecodedToken>(accessToken);
+      
+      if (!decodedToken.role) {
+        throw new Error("No role found in token");
+      }
+
+      // 4. Redirect based on role
+      const redirectPath = decodedToken.role === "ADMIN" 
+        ? "/admin/dashboard" 
+        :  `/user/${decodedToken.id}/dashboard`;
+      
+      navigate(redirectPath, { replace: true });
+      toast.success("Login successful!");
+
     } catch (error: any) {
-      const validationError = error?.data?.data?.errors?.[0].msg;
-      toast.error(
-        validationError ?? error?.data?.message ?? "Something went wrong!"
-      );
+      console.error("Login error:", error);
+      
+      // Clear tokens on error
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+
+      let errorMessage = "Login failed. Please try again.";
+      
+      if (error?.status === 401) {
+        errorMessage = "Invalid email or password";
+      } else if (error?.status === 403) {
+        errorMessage = "Account not verified or blocked";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Box
-      height="100vh"
-      width="100vw"
-      display="flex"
-      justifyContent="center"
+    <Box 
+      height="100vh" 
+      display="flex" 
+      justifyContent="center" 
       alignItems="center"
+      bgcolor="background.default"
     >
-      <Card variant="outlined" sx={style.root}>
-        <CardContent>
-          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-            <Box>
-              <Typography variant="h4" component="h1">
-                <b>Welcome!</b>
-              </Typography>
-              <Typography my={1}>Sign in to continue.</Typography>
-            </Box>
-            <TextField
-              sx={style.input}
-              fullWidth
-              type="text"
-              placeholder="Email"
-              label="Email"
-              {...register("email")}
-              error={Boolean(errors.email?.message)}
-              helperText={errors.email?.message}
-            />
-            <PasswordInput
-              sx={style.input}
-              fullWidth
-              type="password"
-              placeholder="password"
-              label="password"
-              error={Boolean(errors.password?.message)}
-              helperText={errors.password?.message}
-              {...register("password")}
-            />
-            <Button
-              type="submit"
-              sx={style.button}
-              variant="contained"
-              fullWidth
-              disabled={!isValid}
-            >
-              Log in
-            </Button>
-            <Typography>
-              Don&apos;t have an account?{" "}
-              <NavLink style={style.link as CSSProperties} to="/signup">
-                Sign up
-              </NavLink>
+      <Card 
+        elevation={3}
+        sx={{ 
+          width: '100%',
+          maxWidth: 450,
+          p: 3
+        }}
+      >
+        <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
+          Welcome Back
+        </Typography>
+        <Typography color="text.secondary" mb={4}>
+          Please sign in to your account
+        </Typography>
+
+        <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+          <TextField
+            fullWidth
+            label="Email Address"
+            margin="normal"
+            {...register("email")}
+            error={!!errors.email}
+            helperText={errors.email?.message}
+            disabled={isSubmitting}
+            autoComplete="email"
+            autoFocus
+          />
+
+          <PasswordInput
+            fullWidth
+            label="Password"
+            margin="normal"
+            {...register("password")}
+            error={!!errors.password}
+            helperText={errors.password?.message}
+            disabled={isSubmitting}
+            autoComplete="current-password"
+          />
+
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            size="large"
+            disabled={!isValid || isSubmitting}
+            sx={{ 
+              mt: 3,
+              height: 48,
+              fontSize: 16,
+              fontWeight: 600
+            }}
+          >
+            {isSubmitting ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : "Sign In"}
+          </Button>
+
+          <Box textAlign="center" mt={3}>
+            <Typography variant="body2" color="text.secondary">
+              Don't have an account?{" "}
+              <Box
+                component={NavLink}
+                to="/signup"
+                sx={{
+                  color: theme.palette.primary.main,
+                  fontWeight: 500,
+                  textDecoration: 'none',
+                  '&:hover': {
+                    textDecoration: 'underline'
+                  }
+                }}
+              >
+                Create one
+              </Box>
             </Typography>
           </Box>
-        </CardContent>
+        </Box>
       </Card>
     </Box>
   );
