@@ -16,7 +16,26 @@ const UserSchema = new Schema<IUser>(
     password: { type: String },
     isBlocked: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
-    kycCompleted : {type: Boolean, default: false},
+      kyc: {
+        completed: {
+          type: Boolean,
+          default: false
+        },
+        images: [
+          {
+            url: { type: String, required: false },  // You can add multiple URLs here
+            uploadedAt: { type: Date, default: Date.now }
+          }
+        ],
+        status: {
+          type: String,
+          enum: ['pending', 'verified', 'rejected'],
+          default: 'pending'
+        },
+        reviewedAt: {
+          type: Date
+        }
+      },
     isActive: { type: Boolean, default: false },
     role: { type: String, enum: ["USER", "ADMIN"], default: "USER" },
     refreshToken: {type: String,default: ""},
@@ -24,13 +43,6 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-const AdminSchema = new Schema<IAdmin> (
-  {
-    email: {type: String, required: true, unique: true},
-     name: {type: String, required: true},
-     password: {type: String, required: true}
-  }
-)
 
 // Pre-save middleware to hash the password if it is set or modified
 UserSchema.pre("save", async function (next) {
@@ -41,4 +53,3 @@ UserSchema.pre("save", async function (next) {
 });
 
 export default mongoose.model("User", UserSchema);
-export const Admin = mongoose.model("Admin", AdminSchema);

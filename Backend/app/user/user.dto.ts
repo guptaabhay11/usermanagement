@@ -8,7 +8,12 @@ export interface IUser extends BaseSchema {
         isVerified: boolean;
         isActive: boolean;
         role: "USER" | "ADMIN";
-        kycCompleted?: boolean
+        kyc: {
+                completed: Boolean, // same as before
+                images: string[],   // new field for storing Cloudinary URLs
+                status?: 'pending' | 'verified' | 'rejected', // optional
+                reviewedAt?: Date
+              },
         password?: string
         refreshToken:string
         profileCompleted?: boolean;

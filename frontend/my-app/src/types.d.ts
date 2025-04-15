@@ -12,7 +12,15 @@ export interface User {
   password?: string;
   isBlocked: boolean;
   isVerified: boolean;
-  kycCompleted: boolean;
+  kyc: {
+    completed: boolean;
+    images: Array<{
+      url: string;
+      uploadedAt: Date;
+    }>;
+    status: 'pending' | 'verified' | 'rejected';
+    reviewedAt?: Date;
+  };
   isActive: boolean;
   role: "USER" | "ADMIN";
   refreshToken: string;
@@ -20,8 +28,10 @@ export interface User {
   updatedAt?: Date;
 }
 
+export type KYCStatus = "pending" | "verified" | "rejected"
+
 export interface ApiResponse<T> {
   data: T;
   message: string;
-  success: boolean;  // Fixed typo from "sucess" to "success"
+  success: boolean;
 }

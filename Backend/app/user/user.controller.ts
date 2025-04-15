@@ -9,6 +9,9 @@ import transporter from "../node-mailer/config";
 import { sendEmail } from "../common/helper/sendEmail";
 import { IUser } from "./user.dto";
 import userSchema from "./user.schema";
+import sharp from "sharp";
+import { AuthenticatedRequest, authenticateUser } from "./auth.middleware";
+
 
 
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
@@ -108,6 +111,13 @@ interface JwtPayload {
     userId: string;  // Assuming the JWT payload has the userId
   }
   
+
+  interface MyDecodedToken {
+    id: string;
+    role: string;
+    iat: number;
+    exp: number;
+  }
   export const updateUserController = async (req: Request, res: Response): Promise<void> => {
     try {
       // Step 1: Extract the JWT token from the Authorization header
@@ -445,7 +455,10 @@ export const updateKYCStatus = asyncHandler(async (req: Request, res: Response) 
 
     const updatedUser = await userService.updateUser(userId, {
         ...existingUser,
-        kycCompleted,
+        kyc: {
+          completed: req.body.completed,
+          images: []
+        },
         isActive, 
     });
 
@@ -456,3 +469,57 @@ export const updateKYCStatus = asyncHandler(async (req: Request, res: Response) 
     });
 });
 
+
+
+
+
+export const saveKycDocs = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.auth?.id;
+    const cloudinaryUrls = req.body.cloudinaryUrls;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: "User ID missing from token" });
+      return;
+    }
+
+    if (!cloudinaryUrls || !Array.isArray(cloudinaryUrls) || cloudinaryUrls.length === 0) {
+      res.status(400).json({ success: false, message: "No files uploaded" });
+      return;
+    }
+
+    const kycImages = cloudinaryUrls.map((url: string) => ({
+      url,
+      uploadedAt: new Date(),
+    }));
+
+    const updatedUser = await userSchema.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          'kyc.images': kycImages,
+          'kyc.completed': true,
+          'kyc.status': 'pending',
+        },
+      },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      res.status(404).json({ success: false, message: "User not found." });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "KYC documents uploaded successfully",
+      data: updatedUser,
+    });
+  } catch (error: any) {
+    console.error("Error saving KYC documents:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};

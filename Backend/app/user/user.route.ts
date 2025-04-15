@@ -1,9 +1,13 @@
 
-import { Router } from "express";
+import { RequestHandler, Router } from "express";
 import { catchError } from "../common/middleware/catch-error.middleware";
 import * as userController from "./user.controller";
 import * as userValidator from "./user.validation";
 import { roleAuth } from "../common/middleware/role-auth.middleware";
+import { upload } from "../common/cloudinary/addFiles";
+import { authenticateUser } from "./auth.middleware";
+import {uploadToCloudinary} from "../common/cloudinary/addFiles"
+
 
 const router = Router();
 
@@ -24,13 +28,21 @@ router
         
         .post("/login", userValidator.loginUser, catchError, userController.loginUser) //login route
         .post("/refresh", userValidator.refreshToken, catchError, userController.refresh) //jwt expired route
-        .put("/update-kyc-status/:userId",userValidator.updateKYCStatus,catchError, userController.updateKYCStatus) //update kyc
+        .patch("/update-kyc-status/:userId",userValidator.updateKYCStatus,catchError, userController.updateKYCStatus) //update kyc
 
         
         .post("/set-password/:token",catchError ,userController.setPassword) //send mail to the user who has not set their password yet
         .post("/forgot-password/", catchError, userController.forgotPassword)
         .patch("/update-password/:token", catchError, userController.updatePassword)
 
+
+
+        .post(
+                '/upload-kyc',
+                authenticateUser,
+                upload.array('files'),
+                uploadToCloudinary,
+              );
 
         
 export default router;

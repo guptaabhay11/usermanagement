@@ -104,6 +104,15 @@ updateUser: builder.mutation<ApiResponse<User>, { userId: string; [key: string]:
     logout: builder.mutation<void, void>({
       query: () => ({ url: `/users/logout`, method: "POST" }),
     }),
+    uploadKyc: builder.mutation<ApiResponse<User>, FormData>({
+      query: (formData) => ({
+        url: `/users/upload-kyc`,
+        method: 'POST',
+        body: formData,
+      }),
+    }),
+    
+    
   }),
 });
 
@@ -113,6 +122,7 @@ export const {
   useRegisterMutation,
   useInviteUserMutation,
   useResendEmailMutation,
+  useUploadKycMutation,
   useGetDashboardStatsQuery,
   useGetUserByIdQuery,
   useUpdateUserMutation,

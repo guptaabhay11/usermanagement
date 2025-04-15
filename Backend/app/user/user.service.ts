@@ -2,9 +2,12 @@ import bcrypt from "bcrypt";
 import transporter from "../node-mailer/config";
 import { type IUser } from "./user.dto";
 import UserSchema from "./user.schema";
+import { upload } from "../common/cloudinary/addFiles";
 import jwt from "jsonwebtoken";
 import userSchema from "./user.schema";
+import { v2 as cloudinary } from 'cloudinary';
 import { sendEmail } from "../common/helper/sendEmail";
+
 export const createUser = async (data: IUser) => {
     const result = await UserSchema.create({ ...data, active: true });
     return result;
@@ -144,9 +147,6 @@ export const resendEmailService = async (email: string, subject: string, emailBo
     if (!email) {
         throw new Error("Email address is required");
     }
-
-    
-
     // Find the user
     const user = await UserSchema.findOne({ email });
     if (!user) {
@@ -202,3 +202,30 @@ export const updateKYCStatus = async (
   
     return user;
   };
+
+
+
+
+  export const uploadFile = async (fileBuffer: Buffer, userId: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'image',
+          folder: `usermanagement/${userId || 'temp'}`,
+        },
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary upload error:', error);
+            reject(error);
+          } else if (!result) {
+            reject(new Error('Cloudinary upload returned no result'));
+          } else {
+            resolve(result.secure_url);
+          }
+        }
+      );
+  
+      uploadStream.end(fileBuffer);
+    });
+  };
+  

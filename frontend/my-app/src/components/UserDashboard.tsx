@@ -14,7 +14,6 @@ import {
 import { toast } from 'react-toastify';
 import { useUpdateUserMutation } from '../services/api';
 
-
 interface DashboardSection {
   title: string;
   description: string;
@@ -40,18 +39,25 @@ const UserDashboard = () => {
         [field]: value,
       }).unwrap();
   
+      // Update localUser state correctly
       setLocalUser({
         id: updatedUser.data._id,
         role: updatedUser.data.role,
         name: updatedUser.data.name,
         email: updatedUser.data.email,
-        kycCompleted: updatedUser.data.kycCompleted,
+        kyc: {
+          ...updatedUser.data.kyc, // Ensure the full KYC object is kept intact
+          images: updatedUser.data.kyc.images.map((img: any) => ({
+            url: img.url,
+            uploadedAt: new Date(img.uploadedAt).toISOString() // Ensure uploadedAt is formatted correctly
+          })),
+          reviewedAt: updatedUser.data.kyc.reviewedAt ? new Date(updatedUser.data.kyc.reviewedAt).toISOString() : undefined
+        },
         isActive: updatedUser.data.isActive,
         isVerified: updatedUser.data.isVerified,
-        createdAt: updatedUser.data.createdAt ? new Date(updatedUser.data.createdAt) : null,
+        createdAt: updatedUser.data.createdAt ? new Date(updatedUser.data.createdAt).toISOString() : null, // Ensure createdAt is a string
       });
       
-  
       toast.success('Profile updated successfully!');
     } catch (error) {
       toast.error('Failed to update profile');
@@ -62,7 +68,7 @@ const UserDashboard = () => {
     {
       title: "Finish KYC Verification",
       description: "Just a quick identity check ",
-      completed: localUser?.kycCompleted || false,
+      completed: localUser?.kyc.completed || false,
       field: 'kycCompleted'
     },
     {
@@ -111,7 +117,7 @@ const UserDashboard = () => {
                     control={
                       <Switch
                         checked={section.completed}
-                        // onChange={(e) => handleToggle(section.field, e.target.checked)}
+                        onChange={(e) => handleToggle(section.field, e.target.checked)}
                         disabled={isLoading}
                       />
                     }

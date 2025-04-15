@@ -12,11 +12,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateKYCStatus = exports.inviteUser = exports.resendEmailService = exports.getDashboardStats = exports.blockUser = exports.updatePassword = exports.generateRefreshToken = exports.generateAccessToken = exports.getUserByEmail = exports.getAllUser = exports.getUserById = exports.getMe = exports.deleteUser = exports.editUser = exports.updateUser = exports.createUser = void 0;
+exports.uploadFile = exports.updateKYCStatus = exports.inviteUser = exports.resendEmailService = exports.getDashboardStats = exports.blockUser = exports.updatePassword = exports.generateRefreshToken = exports.generateAccessToken = exports.getUserByEmail = exports.getAllUser = exports.getUserById = exports.getMe = exports.deleteUser = exports.editUser = exports.updateUser = exports.createUser = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const user_schema_1 = __importDefault(require("./user.schema"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const user_schema_2 = __importDefault(require("./user.schema"));
+const cloudinary_1 = require("cloudinary");
 const sendEmail_1 = require("../common/helper/sendEmail");
 const createUser = (data) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield user_schema_1.default.create(Object.assign(Object.assign({}, data), { active: true }));
@@ -183,3 +184,24 @@ const updateKYCStatus = (id, updateData) => __awaiter(void 0, void 0, void 0, fu
     return user;
 });
 exports.updateKYCStatus = updateKYCStatus;
+const uploadFile = (fileBuffer, userId) => __awaiter(void 0, void 0, void 0, function* () {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary_1.v2.uploader.upload_stream({
+            resource_type: 'image',
+            folder: `usermanagement/${userId || 'temp'}`,
+        }, (error, result) => {
+            if (error) {
+                console.error('Cloudinary upload error:', error);
+                reject(error);
+            }
+            else if (!result) {
+                reject(new Error('Cloudinary upload returned no result'));
+            }
+            else {
+                resolve(result.secure_url);
+            }
+        });
+        uploadStream.end(fileBuffer);
+    });
+});
+exports.uploadFile = uploadFile;

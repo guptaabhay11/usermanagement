@@ -38,6 +38,9 @@ const catch_error_middleware_1 = require("../common/middleware/catch-error.middl
 const userController = __importStar(require("./user.controller"));
 const userValidator = __importStar(require("./user.validation"));
 const role_auth_middleware_1 = require("../common/middleware/role-auth.middleware");
+const addFiles_1 = require("../common/cloudinary/addFiles");
+const auth_middleware_1 = require("./auth.middleware");
+const addFiles_2 = require("../common/cloudinary/addFiles");
 const router = (0, express_1.Router)();
 router
     .get("/", (0, role_auth_middleware_1.roleAuth)(["ADMIN"]), userController.getAllUser) // return all the user, accessable by admin only
@@ -54,5 +57,6 @@ router
     .put("/update-kyc-status/:userId", userValidator.updateKYCStatus, catch_error_middleware_1.catchError, userController.updateKYCStatus) //update kyc
     .post("/set-password/:token", catch_error_middleware_1.catchError, userController.setPassword) //send mail to the user who has not set their password yet
     .post("/forgot-password/", catch_error_middleware_1.catchError, userController.forgotPassword)
-    .patch("/update-password/:token", catch_error_middleware_1.catchError, userController.updatePassword);
+    .patch("/update-password/:token", catch_error_middleware_1.catchError, userController.updatePassword)
+    .post('/upload-kyc', auth_middleware_1.authenticateUser, addFiles_1.upload.array('files'), addFiles_2.uploadToCloudinary);
 exports.default = router;

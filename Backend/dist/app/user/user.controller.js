@@ -45,7 +45,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateKYCStatus = exports.updatePassword = exports.forgotPassword = exports.resendEmail = exports.getDashboardStats = exports.changeBlockStatus = exports.setPassword = exports.refresh = exports.getAllUser = exports.getMe = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUserController = exports.refreshToken = exports.loginUser = exports.createUser = void 0;
+exports.saveKycDocs = exports.updateKYCStatus = exports.updatePassword = exports.forgotPassword = exports.resendEmail = exports.getDashboardStats = exports.changeBlockStatus = exports.setPassword = exports.refresh = exports.getAllUser = exports.getMe = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUserController = exports.refreshToken = exports.loginUser = exports.createUser = void 0;
 const user_schema_1 = __importDefault(require("./user.schema"));
 const userService = __importStar(require("./user.service"));
 const response_helper_1 = require("../common/helper/response.helper");
@@ -53,6 +53,7 @@ const express_async_handler_1 = __importDefault(require("express-async-handler")
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const sendEmail_1 = require("../common/helper/sendEmail");
+const user_schema_2 = __importDefault(require("./user.schema"));
 exports.createUser = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { email } = req.body;
     const existingUser = yield userService.getUserByEmail(email);
@@ -391,11 +392,56 @@ exports.updateKYCStatus = (0, express_async_handler_1.default)((req, res) => __a
         });
         return; // Exit the function after sending the response
     }
-    const updatedUser = yield userService.updateUser(userId, Object.assign(Object.assign({}, existingUser), { kycCompleted,
-        isActive }));
+    const updatedUser = yield userService.updateUser(userId, Object.assign(Object.assign({}, existingUser), { kyc: {
+            completed: req.body.completed,
+            images: []
+        }, isActive }));
     res.json({
         success: true,
         message: "User KYC and active status updated successfully",
         data: updatedUser,
     });
 }));
+const saveKycDocs = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const userId = (_a = req.auth) === null || _a === void 0 ? void 0 : _a.id;
+        const cloudinaryUrls = req.body.cloudinaryUrls;
+        if (!userId) {
+            res.status(401).json({ success: false, message: "User ID missing from token" });
+            return;
+        }
+        if (!cloudinaryUrls || !Array.isArray(cloudinaryUrls) || cloudinaryUrls.length === 0) {
+            res.status(400).json({ success: false, message: "No files uploaded" });
+            return;
+        }
+        const kycImages = cloudinaryUrls.map((url) => ({
+            url,
+            uploadedAt: new Date(),
+        }));
+        const updatedUser = yield user_schema_2.default.findByIdAndUpdate(userId, {
+            $set: {
+                'kyc.images': kycImages,
+                'kyc.completed': true,
+                'kyc.status': 'pending',
+            },
+        }, { new: true }).select("-password");
+        if (!updatedUser) {
+            res.status(404).json({ success: false, message: "User not found." });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: "KYC documents uploaded successfully",
+            data: updatedUser,
+        });
+    }
+    catch (error) {
+        console.error("Error saving KYC documents:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message || "Internal server error",
+        });
+    }
+});
+exports.saveKycDocs = saveKycDocs;

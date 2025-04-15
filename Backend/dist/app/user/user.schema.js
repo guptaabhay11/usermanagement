@@ -12,7 +12,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Admin = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const Schema = mongoose_1.default.Schema;
@@ -26,16 +25,30 @@ const UserSchema = new Schema({
     password: { type: String },
     isBlocked: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
-    kycCompleted: { type: Boolean, default: false },
+    kyc: {
+        completed: {
+            type: Boolean,
+            default: false
+        },
+        images: [
+            {
+                url: { type: String, required: false }, // You can add multiple URLs here
+                uploadedAt: { type: Date, default: Date.now }
+            }
+        ],
+        status: {
+            type: String,
+            enum: ['pending', 'verified', 'rejected'],
+            default: 'pending'
+        },
+        reviewedAt: {
+            type: Date
+        }
+    },
     isActive: { type: Boolean, default: false },
     role: { type: String, enum: ["USER", "ADMIN"], default: "USER" },
     refreshToken: { type: String, default: "" },
 }, { timestamps: true });
-const AdminSchema = new Schema({
-    email: { type: String, required: true, unique: true },
-    name: { type: String, required: true },
-    password: { type: String, required: true }
-});
 // Pre-save middleware to hash the password if it is set or modified
 UserSchema.pre("save", function (next) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -46,4 +59,3 @@ UserSchema.pre("save", function (next) {
     });
 });
 exports.default = mongoose_1.default.model("User", UserSchema);
-exports.Admin = mongoose_1.default.model("Admin", AdminSchema);
