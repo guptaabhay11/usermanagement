@@ -168,7 +168,7 @@ exports.deleteUser = (0, express_async_handler_1.default)((req, res) => __awaite
     res.send((0, response_helper_1.createResponse)(result, "User deleted sucssefully"));
 }));
 exports.getUserById = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const userId = req.params.id;
+    const userId = "67fa5300094c94eed12ea35d";
     console.log("Fetching user with ID:", userId);
     const user = yield userService.getUserById(userId); // Adjust the service call as necessary
     if (!user) {
@@ -179,23 +179,62 @@ exports.getUserById = (0, express_async_handler_1.default)((req, res) => __await
 }));
 exports.getMe = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        // Use the user ID from the decoded token (req.user.id)
-        if (!req.user) {
-            res.status(401).json({ success: false, message: "Unauthorized: User not found in request" });
+        // 1. Check for Authorization header
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            res.status(401).json({
+                success: false,
+                message: "Authorization token required in format: Bearer <token>"
+            });
             return;
         }
-        const userId = req.user._id;
-        console.log("Fetching user with ID:", userId);
-        const user = yield userService.getUserById(userId); // Call your service to get the user
-        if (!user) {
-            res.status(404).json({ success: false, message: "User not found" });
+        // 2. Extract token
+        const token = authHeader.split(' ')[1];
+        // 3. Verify token
+        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
+        // 4. Validate decoded payload
+        if (!(decoded === null || decoded === void 0 ? void 0 : decoded.id)) {
+            res.status(401).json({
+                success: false,
+                message: "Invalid token payload"
+            });
+            return;
         }
-        // Send the user data
+        // 5. Fetch user
+        const user = yield userService.getUserById(decoded.id);
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+            return;
+        }
+        // 6. Return user data
         res.json((0, response_helper_1.createResponse)(user));
+        return;
     }
-    catch (err) {
-        console.error("Error fetching user:", err);
-        res.status(500).json({ success: false, message: "Internal Server Error" });
+    catch (error) {
+        console.error("Error in getMe:", error);
+        // Handle specific JWT errors
+        if (error instanceof jsonwebtoken_1.default.JsonWebTokenError) {
+            res.status(401).json({
+                success: false,
+                message: "Invalid or expired token"
+            });
+            return;
+        }
+        if (error instanceof jsonwebtoken_1.default.TokenExpiredError) {
+            res.status(401).json({
+                success: false,
+                message: "Token expired"
+            });
+            return;
+        }
+        res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
+        return;
     }
 }));
 exports.getAllUser = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {

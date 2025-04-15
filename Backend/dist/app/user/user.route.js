@@ -45,7 +45,7 @@ const router = (0, express_1.Router)();
 router
     .get("/", (0, role_auth_middleware_1.roleAuth)(["ADMIN"]), userController.getAllUser) // return all the user, accessable by admin only
     .post("/invite-user", userValidator.inviteUser, catch_error_middleware_1.catchError, userController.createUser) //by sending mail
-    .get("/me", catch_error_middleware_1.catchError, userController.getUserById) // get the user details of the logged in user
+    .get("/me", catch_error_middleware_1.catchError, userController.getMe) // get the user details of the logged in user
     .post("/resend-mail", catch_error_middleware_1.catchError, userController.resendEmail) // resend the mail to the user who has not verified their email yet
     .get("/dashboard-stats", userController.getDashboardStats)
     .get("/:id", userController.getUserById)
@@ -54,7 +54,7 @@ router
     .put("/set-status", userController.changeBlockStatus)
     .post("/login", userValidator.loginUser, catch_error_middleware_1.catchError, userController.loginUser) //login route
     .post("/refresh", userValidator.refreshToken, catch_error_middleware_1.catchError, userController.refresh) //jwt expired route
-    .put("/update-kyc-status/:userId", userValidator.updateKYCStatus, catch_error_middleware_1.catchError, userController.updateKYCStatus) //update kyc
+    .patch("/update-kyc-status/:userId", userValidator.updateKYCStatus, catch_error_middleware_1.catchError, userController.updateKYCStatus) //update kyc
     .post("/set-password/:token", catch_error_middleware_1.catchError, userController.setPassword) //send mail to the user who has not set their password yet
     .post("/forgot-password/", catch_error_middleware_1.catchError, userController.forgotPassword)
     .patch("/update-password/:token", catch_error_middleware_1.catchError, userController.updatePassword)

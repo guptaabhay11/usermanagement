@@ -14,7 +14,7 @@ const router = Router();
 router
         .get("/", roleAuth(["ADMIN"]), userController.getAllUser) // return all the user, accessable by admin only
         .post("/invite-user", userValidator.inviteUser, catchError, userController.createUser) //by sending mail
-        .get("/me", catchError, userController.getUserById) // get the user details of the logged in user
+        .get("/me", catchError, userController.getMe) // get the user details of the logged in user
         
         .post("/resend-mail", catchError, userController.resendEmail) // resend the mail to the user who has not verified their email yet
         .get("/dashboard-stats", userController.getDashboardStats)

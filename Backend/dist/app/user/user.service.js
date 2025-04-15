@@ -66,7 +66,7 @@ const getMe = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 exports.getMe = getMe;
 const getUserById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield user_schema_1.default.findById(id);
-    console.log(id);
+    console.log("id", id);
     console.log(result);
     return result;
 });

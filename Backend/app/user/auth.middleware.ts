@@ -15,7 +15,8 @@ export const authenticateUser = (
   next: NextFunction
 ): void => {
   
-  const token = req.headers.authorization;
+  const token = req.headers.authorization?.replace('Bearer ', '');
+
   
 
   console.log("token", token)
@@ -31,6 +32,8 @@ export const authenticateUser = (
       id: string;
       role: string;
     };
+
+    console.log("decode token with the berer")
 
     req.auth = { id: decoded.id, role: decoded.role };
     next();
