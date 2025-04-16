@@ -31,6 +31,18 @@ exports.inviteUser = [
     (0, express_validator_1.body)('email').notEmpty().withMessage('email is required').isString().withMessage('email must be a string'),
 ];
 exports.updateKYCStatus = [
-    (0, express_validator_1.body)('isVerified').isBoolean().withMessage('isVerified must be a boolean'),
-    (0, express_validator_1.body)('kycCompleted').isBoolean().withMessage('kycCompleted must be a boolean'),
+    (0, express_validator_1.body)('kyc.completed')
+        .isBoolean()
+        .withMessage('kyc.completed must be a boolean'),
+    (0, express_validator_1.body)('kyc.status')
+        .isIn(['pending', 'verified', 'rejected'])
+        .withMessage('kyc.status must be one of: pending, verified, or rejected'),
+    (0, express_validator_1.body)('kyc.images')
+        .optional()
+        .isArray()
+        .withMessage('kyc.images must be an array'),
+    (0, express_validator_1.body)('kyc.images.*')
+        .optional()
+        .isString()
+        .withMessage('Each kyc.images item must be a string'),
 ];

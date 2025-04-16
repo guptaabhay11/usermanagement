@@ -1,77 +1,41 @@
 import React from 'react';
 import {
-  Paper,
-  Typography,
-  CircularProgress,
-  Alert,
-  Chip,
-  Box,
-  Divider,
-  Stack,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  ImageList,
-  ImageListItem
+  Paper, Typography, CircularProgress, Alert, Chip, Box, Divider,
+  Stack, Button, Snackbar, Alert as MuiAlert
 } from '@mui/material';
 import {
   useGetUserByIdQuery,
   useResendEmailMutation,
   useUpdateKYCStatusMutation
 } from '../services/api';
+import KycReviewDialog from './KycReviewDialog';
 
 interface UserDetailsProps {
   userId: string;
 }
 
 const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
-  const { data, isLoading, error } = useGetUserByIdQuery(userId);
+  const { data, isLoading, error, refetch } = useGetUserByIdQuery(userId);
   const [resendEmail, { isLoading: isSending, isSuccess: sent, isError: sendError }] = useResendEmailMutation();
   const [updateKycStatus, { isLoading: isUpdating }] = useUpdateKYCStatusMutation();
   const [isKycModalOpen, setKycModalOpen] = React.useState(false);
-
-  if (isLoading) return (
-    <Box display="flex" justifyContent="center" my={4}>
-      <CircularProgress />
-    </Box>
-  );
-
-  if (error) return (
-    <Alert severity="error" sx={{ my: 2 }}>
-      Error loading user details
-    </Alert>
-  );
+  const [snackbar, setSnackbar] = React.useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   const user = data?.data;
 
-  if (!user) return (
-    <Alert severity="warning" sx={{ my: 2 }}>
-      User not found
-    </Alert>
-  );
-
-  const getStatusChip = (status: boolean, positiveLabel: string, negativeLabel: string) => {
-    return (
-      <Chip
-        label={status ? positiveLabel : negativeLabel}
-        color={status ? 'success' : 'error'}
-        size="small"
-      />
-    );
-  };
-
-  const getRoleChip = (role: string) => {
-    const colorMap: Record<string, 'primary' | 'secondary' | 'default' | 'info'> = {
-      ADMIN: 'primary',
-      USER: 'secondary',
-      EDITOR: 'info'
-    };
-    return <Chip label={role} color={colorMap[role] || 'default'} size="small" />;
+  const showToast = (message: string, severity: 'success' | 'error') => {
+    setSnackbar({ open: true, message, severity });
   };
 
   const handleResendKyc = async () => {
+    if (!user) {
+      showToast('User not found.', 'error');
+      return;
+    }
     try {
       await resendEmail({ email: user.email }).unwrap();
     } catch (err) {
@@ -80,187 +44,176 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
   };
 
   const handleApprove = async () => {
-    if (!user?._id) return;
-    await updateKycStatus({ userId: user._id, kycStatus: 'verified' });
-    setKycModalOpen(false);
+    if (!user) {
+      showToast('User not found.', 'error');
+      return;
+    }
+    try {
+      const result = await updateKycStatus({
+        userId: user._id,
+        body: {
+          kyc: {
+            completed: true,
+            status: 'verified'
+          }
+        }
+      }).unwrap();
+
+      console.log('KYC Approved:', result);
+      await refetch();
+      setKycModalOpen(false);
+      showToast('User KYC approved.', 'success');
+    } catch (err) {
+      console.error('Failed to approve KYC:', err);
+      showToast('Failed to approve KYC.', 'error');
+    }
   };
 
   const handleReject = async () => {
-    if (!user?._id) return;
-    await updateKycStatus({ userId: user._id, kycStatus: 'rejected' });
-    setKycModalOpen(false);
+    if (!user) {
+      showToast('User not found.', 'error');
+      return;
+    }
+    try {
+      const result = await updateKycStatus({
+        userId: user._id,
+        body: {
+          kyc: {
+            completed: false,
+            status: 'rejected'
+          }
+        }
+      }).unwrap();
+
+      console.log('KYC Rejected:', result);
+      await refetch();
+      setKycModalOpen(false);
+      showToast('User KYC rejected.', 'success');
+    } catch (err) {
+      console.error('Failed to reject KYC:', err);
+      showToast('Failed to reject KYC.', 'error');
+    }
   };
 
+  if (isLoading) return <Box display="flex" justifyContent="center" my={4}><CircularProgress /></Box>;
+  if (error) return <Alert severity="error" sx={{ my: 2 }}>Error loading user details</Alert>;
+  if (!user) return <Alert severity="warning" sx={{ my: 2 }}>User not found</Alert>;
+
   return (
-    <Paper elevation={3} sx={{ p: 3, my: 2 }}>
-      <Typography variant="h4" component="h2" gutterBottom>
-        User Details
-      </Typography>
+    <>
+      <Paper elevation={3} sx={{ p: 3, my: 2 }}>
+        <Typography variant="h4" gutterBottom>User Details</Typography>
 
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
-        {/* Basic Information Section */}
-        <Box sx={{ flex: 1, width: '100%' }}>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Basic Information
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
+        <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} gap={3}>
+          {/* User Info */}
+          <Box flex={1}>
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography variant="h6">Basic Information</Typography>
+              <Divider sx={{ mb: 2 }} />
+              <Stack spacing={2}>
+                <Box><Typography>ID</Typography><Typography>{user._id}</Typography></Box>
+                <Box><Typography>Name</Typography><Typography>{user.name}</Typography></Box>
+                <Box><Typography>Email</Typography><Typography>{user.email}</Typography></Box>
+                <Box><Typography>Role</Typography><Chip label={user.role} size="small" /></Box>
+              </Stack>
+            </Paper>
+          </Box>
 
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">ID</Typography>
-                <Typography>{user._id}</Typography>
-              </Box>
+          {/* KYC Status */}
+          <Box flex={1}>
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography variant="h6">Account Status</Typography>
+              <Divider sx={{ mb: 2 }} />
+              <Stack spacing={2}>
+                <Box><Typography>Active</Typography><Chip label={user.isActive ? 'Active' : 'Inactive'} color={user.isActive ? 'success' : 'error'} size="small" /></Box>
+                <Box><Typography>Blocked</Typography><Chip label={!user.isBlocked ? 'Not Blocked' : 'Blocked'} color={!user.isBlocked ? 'success' : 'error'} size="small" /></Box>
+                <Box><Typography>Verified</Typography><Chip label={user.isVerified ? 'Verified' : 'Not Verified'} color={user.isVerified ? 'success' : 'error'} size="small" /></Box>
+                <Box>
+                  <Typography>KYC Completed</Typography>
+                  <Chip label={user.kyc?.completed ? 'Completed' : 'Not Completed'} color={user.kyc?.completed ? 'success' : 'error'} size="small" />
+                  {!user.kyc?.completed && (
+                    <Box mt={1}>
+                      <Button variant="outlined" size="small" onClick={handleResendKyc} disabled={isSending}>
+                        {isSending ? 'Sending...' : 'Send KYC Reminder'}
+                      </Button>
+                      {sent && <Typography variant="caption" color="success.main">Reminder sent!</Typography>}
+                      {sendError && <Typography variant="caption" color="error.main">Failed to send reminder.</Typography>}
+                    </Box>
+                  )}
+                </Box>
 
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">Name</Typography>
-                <Typography>{user.name}</Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">Email</Typography>
-                <Typography>{user.email}</Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">Role</Typography>
-                {getRoleChip(user.role)}
-              </Box>
-            </Stack>
-          </Paper>
-        </Box>
-
-        {/* Account Status Section */}
-        <Box sx={{ flex: 1, width: '100%' }}>
-          <Paper variant="outlined" sx={{ p: 2, position: 'relative' }}>
-            <Typography variant="h6" gutterBottom>
-              Account Status
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">Active</Typography>
-                {getStatusChip(user.isActive, 'Active', 'Inactive')}
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">Blocked</Typography>
-                {getStatusChip(!user.isBlocked, 'Not Blocked', 'Blocked')}
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">Verified</Typography>
-                {getStatusChip(user.isVerified, 'Verified', 'Not Verified')}
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">KYC Completed</Typography>
-                {getStatusChip(user.kyc.completed, 'Completed', 'Not Completed')}
-
-                {!user.kyc.completed && (
-                  <Box mt={1}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={handleResendKyc}
-                      disabled={isSending}
-                    >
-                      {isSending ? 'Sending...' : 'Send KYC Reminder'}
+                {/* KYC Images + Review + Actions */}
+                {user.kyc?.images?.length > 0 && (
+                  <Box mt={2}>
+                    <Button variant="contained" size="small" onClick={() => setKycModalOpen(true)}>
+                      Review KYC
                     </Button>
 
-                    {sent && (
-                      <Typography variant="caption" color="success.main" display="block" mt={1}>
-                        Reminder sent!
-                      </Typography>
-                    )}
-                    {sendError && (
-                      <Typography variant="caption" color="error.main" display="block" mt={1}>
-                        Failed to send reminder.
-                      </Typography>
+                    {!user.kyc?.completed && (
+                      <Box mt={2} display="flex" gap={2}>
+                        <Button 
+                          onClick={handleReject} 
+                          color="error" 
+                          variant="contained" 
+                          disabled={isUpdating}>
+                          {isUpdating ? <CircularProgress size={18} /> : 'Reject'}
+                        </Button>
+                        <Button 
+                          onClick={handleApprove} 
+                          color="success" 
+                          variant="contained" 
+                          disabled={isUpdating}>
+                          {isUpdating ? <CircularProgress size={18} /> : 'Approve'}
+                        </Button>
+                      </Box>
                     )}
                   </Box>
                 )}
-              </Box>
+              </Stack>
+            </Paper>
+          </Box>
+        </Box>
 
-              {/* Review KYC Button */}
-              {user.kyc?.images?.length > 0 && (
-                <Box>
-                  <Button
-                    variant="contained"
-                    color="info"
-                    size="small"
-                    onClick={() => setKycModalOpen(true)}
-                  >
-                    Review KYC
-                  </Button>
-                </Box>
-              )}
+        {/* Timestamps */}
+        <Box mt={3}>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="h6">Timestamps</Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Stack direction={{ xs: 'column', md: 'row' }} gap={2}>
+              <Box>
+                <Typography>Created At</Typography>
+                <Typography>{user.createdAt ? new Date(user.createdAt).toLocaleString() : 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography>Updated At</Typography>
+                <Typography>{user.updatedAt ? new Date(user.updatedAt).toLocaleString() : 'N/A'}</Typography>
+              </Box>
             </Stack>
           </Paper>
         </Box>
-      </Box>
+      </Paper>
 
-      {/* Timestamps Section */}
-      <Box sx={{ mt: 3 }}>
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Timestamps
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
+      {/* KYC Dialog (clean version, no buttons) */}
+      <KycReviewDialog
+        open={isKycModalOpen}
+        onClose={() => setKycModalOpen(false)}
+        images={user.kyc?.images?.map(img => ({
+          url: img.url,
+          uploadedAt: typeof img.uploadedAt === 'string' ? img.uploadedAt : new Date(img.uploadedAt).toISOString()
+        }))}
+        isUpdating={isUpdating}
+        kycStatus={user.kyc?.status || 'pending'}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
 
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="subtitle2" color="text.secondary">Created At</Typography>
-              <Typography>
-                {new Date(user.createdAt || '').toLocaleString()}
-              </Typography>
-            </Box>
-
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="subtitle2" color="text.secondary">Updated At</Typography>
-              <Typography>
-                {new Date(user.updatedAt || '').toLocaleString()}
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-
-      {/* KYC Review Dialog */}
-      <Dialog open={isKycModalOpen} onClose={() => setKycModalOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Review KYC Documents</DialogTitle>
-        <DialogContent dividers>
-          {user.kyc.images?.length > 0 ? (
-            <ImageList cols={3} gap={12}>
-              {user.kyc.images.map((img: any, index: number) => (
-                <ImageListItem key={index}>
-                  <img
-                    src={img.url}
-                    alt={`KYC ${index + 1}`}
-                    loading="lazy"
-                    style={{ borderRadius: 8, width: '100%' }}
-                  />
-                  <Typography variant="caption" display="block" align="center" mt={1}>
-                    Uploaded: {new Date(img.uploadedAt).toLocaleDateString()}
-                  </Typography>
-                </ImageListItem>
-              ))}
-            </ImageList>
-          ) : (
-            <Typography>No KYC images uploaded.</Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleReject} color="error" disabled={isUpdating}>
-            {isUpdating ? 'Processing...' : 'Reject'}
-          </Button>
-          <Button onClick={handleApprove} color="success" disabled={isUpdating}>
-            {isUpdating ? 'Processing...' : 'Approve'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Paper>
+      {/* Snackbar for feedback */}
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <MuiAlert elevation={6} variant="filled" severity={snackbar.severity}>
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
+    </>
   );
 };
 

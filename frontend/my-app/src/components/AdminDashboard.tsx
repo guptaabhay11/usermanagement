@@ -12,6 +12,7 @@ import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useGetAllUsersQuery, useLogoutMutation } from '../services/api';
 import UserList from './UserList';
+import Cookies from 'js-cookie';
 import UserDetails from './UserDetails';
 import InviteUser from './InviteUser';
 import { useSelector } from 'react-redux';
@@ -61,8 +62,9 @@ useEffect(() => {
   }, [selectedUserId]);
 
   const handleLogout = async () => {
+    console.log(handleLogout);
     try {
-      await logout().unwrap();
+      Cookies.remove('AccessToken');
       navigate('/login');
     } catch (err) {
       console.error('Logout failed:', err);

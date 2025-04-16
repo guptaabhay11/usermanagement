@@ -24,6 +24,7 @@ router
        
         .post("/register", userValidator.createUser, catchError, userController.createUser) //admin register route
         .put("/set-status", userController.changeBlockStatus)
+        .post("/logout", userController.logout) //logout route
         
         
         .post("/login", userValidator.loginUser, catchError, userController.loginUser) //login route

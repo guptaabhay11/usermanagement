@@ -39,6 +39,21 @@ export const inviteUser = [
 ]
 
 export const updateKYCStatus = [
-  body('isVerified').isBoolean().withMessage('isVerified must be a boolean'),
-  body('kycCompleted').isBoolean().withMessage('kycCompleted must be a boolean'),
-]
+    body('kyc.completed')
+      .isBoolean()
+      .withMessage('kyc.completed must be a boolean'),
+  
+    body('kyc.status')
+      .isIn(['pending', 'verified', 'rejected'])
+      .withMessage('kyc.status must be one of: pending, verified, or rejected'),
+  
+    body('kyc.images')
+      .optional()
+      .isArray()
+      .withMessage('kyc.images must be an array'),
+  
+    body('kyc.images.*')
+      .optional()
+      .isString()
+      .withMessage('Each kyc.images item must be a string'),
+  ];

@@ -54,10 +54,9 @@ export const getMe = async (req: any, res: any) => {
 };
 
 export const getUserById = async (id: string) => {
-    const result = await UserSchema.findById(id)
-    console.log("id", id)
-    console.log(result)
-    return result;
+  console.log("id from userservice", id)
+  const result = await UserSchema.findById(id)
+  return result;
 };
 
 export const getAllUser = async () => {

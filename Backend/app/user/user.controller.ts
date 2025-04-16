@@ -171,20 +171,9 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getUserById = asyncHandler(async (req: Request, res: Response) => {
- 
-    const userId = "67fa5300094c94eed12ea35d";
-    console.log("Fetching user with ID:", userId);
-  
-    const user = await userService.getUserById(userId);  // Adjust the service call as necessary
-    if (!user) {
-       res.status(404).json({ success: false, message: "User not found" });
-       return;
-    }
-  
-    res.json(createResponse(user));  // Adjust the response utility as necessary
-  });
-
-
+  const result = await userService.getUserById(req.params.id);
+  res.send(createResponse(result))
+});
 
   export const getMe = asyncHandler(async (req: Request, res: Response) => {
     try {
@@ -199,16 +188,15 @@ export const getUserById = asyncHandler(async (req: Request, res: Response) => {
             return;
         }
 
-        // 2. Extract token
+      
         const token = authHeader.split(' ')[1];
         
-        // 3. Verify token
+     
         const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
             id: string;
             role: string;
         };
 
-        // 4. Validate decoded payload
         if (!decoded?.id) {
             res.status(401).json({
                 success: false,
@@ -217,7 +205,6 @@ export const getUserById = asyncHandler(async (req: Request, res: Response) => {
             return;
         }
 
-        // 5. Fetch user
         const user = await userService.getUserById(decoded.id);
         if (!user) {
             res.status(404).json({
@@ -494,33 +481,33 @@ export const updatePassword = asyncHandler(async (req: Request, res: Response) =
 
 
 export const updateKYCStatus = asyncHandler(async (req: Request, res: Response) => {
-    const { userId } = req.params;
-    const { kycCompleted, isActive } = req.body;
-    const existingUser = await User.findById(userId);
-    if (!existingUser) {
-        res.status(404).json({
-            success: false,
-            message: "User not found.",
-        });
-        return; // Exit the function after sending the response
-    }
+  const { userId } = req.params;
+  const { isActive, kyc } = req.body;
 
-    const updatedUser = await userService.updateUser(userId, {
-        ...existingUser,
-        kyc: {
-          completed: req.body.completed,
-          images: []
-        },
-        isActive, 
+  const existingUser = await User.findById(userId);
+  if (!existingUser) {
+     res.status(404).json({
+      success: false,
+      message: 'User not found.',
     });
+    return
+  }
 
-    res.json({
-        success: true,
-        message: "User KYC and active status updated successfully",
-        data: updatedUser,
-    });
+  const updatedUser = await userService.updateUser(userId, {
+    isActive: typeof isActive !== 'undefined' ? isActive : existingUser.isActive,
+    kyc: {
+      completed: kyc?.completed ?? existingUser.kyc.completed,
+      status: kyc?.status ?? existingUser.kyc.status,
+      images: existingUser.kyc.images, // Preserve current images unless changed
+    },
+  });
+
+  res.json({
+    success: true,
+    message: 'User KYC and active status updated successfully',
+    data: updatedUser,
+  });
 });
-
 
 
 
@@ -575,3 +562,11 @@ export const saveKycDocs = async (req: AuthenticatedRequest, res: Response): Pro
     });
   }
 };
+
+
+export const logout = asyncHandler(async (req: Request, res: Response) => {
+    res.cookie("jwt", "", {
+        httpOnly: true,
+        expires: new Date(0),
+    });
+    res.status(200).json({ success: true, message: "User logged out successfully" })});

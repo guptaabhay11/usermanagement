@@ -22,9 +22,6 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { styled } from '@mui/material/styles';
 import { useMeQuery, useUploadKycMutation } from '../services/api';
 
-// Replace this with actual user ID source (props, Redux, etc.)
-const userId = 'some-user-id'; 
-
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
   clipPath: 'inset(50%)',
@@ -76,7 +73,7 @@ const UserDashboard = () => {
     try {
       const formData = new FormData();
       files.forEach((file) => {
-        if (file) formData.append('documents', file);
+        if (file) formData.append('files', file);
       });
 
       await uploadKyc(formData).unwrap();
@@ -102,6 +99,11 @@ const UserDashboard = () => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = '/login';
+  };
+
   if (isLoading) return <CircularProgress />;
   if (isError) return <Typography color="error">Error loading user data</Typography>;
 
@@ -109,9 +111,24 @@ const UserDashboard = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        User Dashboard
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          User Dashboard
+        </Typography>
+        <Button
+          variant="outlined"
+          onClick={handleLogout}
+          sx={{
+            color: (theme) => theme.palette.primary.contrastText,
+            borderColor: (theme) => theme.palette.primary.contrastText,
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            },
+          }}
+        >
+          Logout
+        </Button>
+      </Box>
 
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
         <Box sx={{ width: { xs: '100%', md: '30%' } }}>
@@ -188,7 +205,7 @@ const UserDashboard = () => {
               Upload {steps[activeStep]}
               <VisuallyHiddenInput
                 type="file"
-                accept="image/*,.pdf"
+                accept="image/*"
                 onChange={(e) => handleFileChange(e, activeStep)}
               />
             </Button>

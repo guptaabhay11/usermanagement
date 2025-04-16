@@ -45,7 +45,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveKycDocs = exports.updateKYCStatus = exports.updatePassword = exports.forgotPassword = exports.resendEmail = exports.getDashboardStats = exports.changeBlockStatus = exports.setPassword = exports.refresh = exports.getAllUser = exports.getMe = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUserController = exports.refreshToken = exports.loginUser = exports.createUser = void 0;
+exports.logout = exports.saveKycDocs = exports.updateKYCStatus = exports.updatePassword = exports.forgotPassword = exports.resendEmail = exports.getDashboardStats = exports.changeBlockStatus = exports.setPassword = exports.refresh = exports.getAllUser = exports.getMe = exports.getUserById = exports.deleteUser = exports.editUser = exports.updateUserController = exports.refreshToken = exports.loginUser = exports.createUser = void 0;
 const user_schema_1 = __importDefault(require("./user.schema"));
 const userService = __importStar(require("./user.service"));
 const response_helper_1 = require("../common/helper/response.helper");
@@ -168,14 +168,8 @@ exports.deleteUser = (0, express_async_handler_1.default)((req, res) => __awaite
     res.send((0, response_helper_1.createResponse)(result, "User deleted sucssefully"));
 }));
 exports.getUserById = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const userId = "67fa5300094c94eed12ea35d";
-    console.log("Fetching user with ID:", userId);
-    const user = yield userService.getUserById(userId); // Adjust the service call as necessary
-    if (!user) {
-        res.status(404).json({ success: false, message: "User not found" });
-        return;
-    }
-    res.json((0, response_helper_1.createResponse)(user)); // Adjust the response utility as necessary
+    const result = yield userService.getUserById(req.params.id);
+    res.send((0, response_helper_1.createResponse)(result));
 }));
 exports.getMe = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -188,11 +182,8 @@ exports.getMe = (0, express_async_handler_1.default)((req, res) => __awaiter(voi
             });
             return;
         }
-        // 2. Extract token
         const token = authHeader.split(' ')[1];
-        // 3. Verify token
         const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
-        // 4. Validate decoded payload
         if (!(decoded === null || decoded === void 0 ? void 0 : decoded.id)) {
             res.status(401).json({
                 success: false,
@@ -200,7 +191,6 @@ exports.getMe = (0, express_async_handler_1.default)((req, res) => __awaiter(voi
             });
             return;
         }
-        // 5. Fetch user
         const user = yield userService.getUserById(decoded.id);
         if (!user) {
             res.status(404).json({
@@ -421,23 +411,28 @@ exports.updatePassword = (0, express_async_handler_1.default)((req, res) => __aw
     }
 }));
 exports.updateKYCStatus = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     const { userId } = req.params;
-    const { kycCompleted, isActive } = req.body;
+    const { isActive, kyc } = req.body;
     const existingUser = yield user_schema_1.default.findById(userId);
     if (!existingUser) {
         res.status(404).json({
             success: false,
-            message: "User not found.",
+            message: 'User not found.',
         });
-        return; // Exit the function after sending the response
+        return;
     }
-    const updatedUser = yield userService.updateUser(userId, Object.assign(Object.assign({}, existingUser), { kyc: {
-            completed: req.body.completed,
-            images: []
-        }, isActive }));
+    const updatedUser = yield userService.updateUser(userId, {
+        isActive: typeof isActive !== 'undefined' ? isActive : existingUser.isActive,
+        kyc: {
+            completed: (_a = kyc === null || kyc === void 0 ? void 0 : kyc.completed) !== null && _a !== void 0 ? _a : existingUser.kyc.completed,
+            status: (_b = kyc === null || kyc === void 0 ? void 0 : kyc.status) !== null && _b !== void 0 ? _b : existingUser.kyc.status,
+            images: existingUser.kyc.images, // Preserve current images unless changed
+        },
+    });
     res.json({
         success: true,
-        message: "User KYC and active status updated successfully",
+        message: 'User KYC and active status updated successfully',
         data: updatedUser,
     });
 }));
@@ -484,3 +479,10 @@ const saveKycDocs = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     }
 });
 exports.saveKycDocs = saveKycDocs;
+exports.logout = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    res.cookie("jwt", "", {
+        httpOnly: true,
+        expires: new Date(0),
+    });
+    res.status(200).json({ success: true, message: "User logged out successfully" });
+}));

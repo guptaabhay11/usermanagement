@@ -82,10 +82,14 @@ updateUser: builder.mutation<ApiResponse<User>, { userId: string; [key: string]:
       query: (body) => ({ url: `/users/refresh`, method: "POST", body }),
     }),
 
-    updateKYCStatus: builder.mutation<ApiResponse<User>, { userId: string; kycStatus: string }>({
-      query: ({ userId, ...body }) => ({ url: `/users/update-kyc-status/${userId}`, method: "PATCH", body }),
+    updateKYCStatus: builder.mutation<ApiResponse<User>, { userId: string; body: any }>({
+      query: ({ userId, body }) => ({
+        url: `/users/update-kyc-status/${userId}`,
+        method: "PATCH",
+        body,
+      }),
     }),
-
+    
     setPassword: builder.mutation<ApiResponse<User>, { token: string; password: string; confirmPassword: string }>({
       query: ({ token, ...body }) => ({
         url: `/users/set-password/${token}`,

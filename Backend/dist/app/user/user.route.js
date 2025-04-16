@@ -52,6 +52,7 @@ router
     .patch("/update/", catch_error_middleware_1.catchError, userController.updateUserController) //update user details
     .post("/register", userValidator.createUser, catch_error_middleware_1.catchError, userController.createUser) //admin register route
     .put("/set-status", userController.changeBlockStatus)
+    .post("/logout", userController.logout) //logout route
     .post("/login", userValidator.loginUser, catch_error_middleware_1.catchError, userController.loginUser) //login route
     .post("/refresh", userValidator.refreshToken, catch_error_middleware_1.catchError, userController.refresh) //jwt expired route
     .patch("/update-kyc-status/:userId", userValidator.updateKYCStatus, catch_error_middleware_1.catchError, userController.updateKYCStatus) //update kyc

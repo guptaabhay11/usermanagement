@@ -33,7 +33,6 @@ export const authenticateUser = (
       role: string;
     };
 
-    console.log("decode token with the berer")
 
     req.auth = { id: decoded.id, role: decoded.role };
     next();
